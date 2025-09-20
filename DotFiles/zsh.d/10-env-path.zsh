@@ -10,6 +10,10 @@ export EDITOR="vim"
 export LANG="en_US.UTF-8"
 export LC_ALL="en_US.UTF-8"
 
+# Enable vi-style keybindings in Zsh
+bindkey -v
+export KEYTIMEOUT=1  # faster ESC response (optional)
+
 if [ -d "/opt/homebrew/bin" ]; then
   export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
 fi
