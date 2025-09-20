@@ -1,15 +1,17 @@
 #Place in ~/.configs/starship.toml
 add_newline = false
 
-format = "$directory$git_branch$git_status$hg_branch $character"
+format = "$directory$git_branch$git_status$hg_branch$cmd_duration$character"
 
 [cmd_duration]
-format = '\[[⏱    $duration]($style)\]'
+disabled = false
+min_time = 1000  # show if >1s (instead of default 2s)
+format = '\[[⏱ $duration]($style)\]'
 
 [character]
-success_symbol = "[❯](purple)"
-error_symbol = "[❯](red)"
-vimcmd_symbol = "[❮](green)"
+success_symbol = "[](bold purple)"
+error_symbol   = "[](bold red)"
+vimcmd_symbol  = "[](bold green)"
 
 [directory]
 truncation_length = 1
@@ -26,13 +28,14 @@ format = '\[[$symbol$branch]($style)\]'
 [git_branch]
 symbol = " "
 #style = "fg:34"
-style = "bright-black"
+#style = "bright-black"
+style = "fg:33"
 format = '\[[$symbol$branch]($style)\]'
 
 [git_status]
 style = "fg:202"
-#format = '([\[$all_status$ahead_behind\]]($style))'
 untracked = ""
+format = ' [\[$all_status$ahead_behind\]]($style)'
 
 [git_commit]
 #tag_symbol = '  '
