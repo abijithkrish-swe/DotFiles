@@ -1,0 +1,14 @@
+# ~/.zshrc — modular loader
+
+# Path to modular config
+ZSH_D="$HOME/.zsh.d"
+
+# Source all .zsh files in lexical order
+if [ -d "$ZSH_D" ]; then
+  for f in "$ZSH_D"/*.zsh; do
+    [ -r "$f" ] && [ -f "$f" ] && source "$f"
+  done
+fi
+
+# Local overrides (ignored if missing)
+[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"

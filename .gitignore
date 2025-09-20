@@ -1,0 +1,27 @@
+# -----------------------------------------------------------------------------
+# DotFiles repo ignore rules
+# -----------------------------------------------------------------------------
+
+# --- Secrets (never commit) ---
+DotFiles/config/secrets/
+zshrc_backup_final
+
+# --- Runtime / cache dirs ---
+.zshcache/
+
+# --- Local backups created by install_copy.sh ---
+Backup/
+
+# --- Local backups created by install_copy.sh ---
+OldDocs/
+
+# --- OS / editor junk ---
+*~
+.DS_Store
+Thumbs.db
+
+# --- Vim swap/backup/undo (in case cache redirection fails) ---
+*.swp
+*.swo
+*.swn
+*.un~

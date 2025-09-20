@@ -1,0 +1,42 @@
+#Place in ~/.configs/starship.toml
+add_newline = false
+
+format = "$directory$git_branch$git_status$hg_branch $character"
+
+[cmd_duration]
+format = '\[[⏱    $duration]($style)\]'
+
+[character]
+success_symbol = "[❯](purple)"
+error_symbol = "[❯](red)"
+vimcmd_symbol = "[❮](green)"
+
+[directory]
+truncation_length = 1
+truncate_to_repo = false
+style = "cyan"
+format = "[$path]($style) "
+
+[hg_branch]
+disabled = false
+symbol = " "
+style = "red"
+format = '\[[$symbol$branch]($style)\]'
+
+[git_branch]
+symbol = " "
+#style = "fg:34"
+style = "bright-black"
+format = '\[[$symbol$branch]($style)\]'
+
+[git_status]
+style = "fg:202"
+#format = '([\[$all_status$ahead_behind\]]($style))'
+untracked = ""
+
+[git_commit]
+#tag_symbol = '  '
+
+[memory_usage]
+#format = '\[󰍛 $ram( | $swap)\]($style)'
+#style = "dimmed white"

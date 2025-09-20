@@ -1,0 +1,20 @@
+" Keep history/state in ~/.zshcache instead of $HOME
+if has('nvim')
+  " for Neovim (already uses XDG by default, but explicit for consistency)
+  set shadafile=~/.zshcache/vim.shada
+else
+  " for classic Vim
+  set viminfofile=~/.zshcache/viminfo
+endif
+
+" (Optional) also move swap & backup files here
+set directory^=~/.zshcache/vim/swap//
+
+" --- Backup files ---
+set backup          " actually enable backup files
+set writebackup     " keep backup during write
+set backupdir=~/.zshcache/vim/backup//
+
+" --- Persistent undo ---
+set undofile        " enable persistent undo
+set undodir=~/.zshcache/vim/undo//
