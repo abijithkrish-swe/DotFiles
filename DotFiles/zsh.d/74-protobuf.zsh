@@ -1,8 +1,14 @@
 # 74) Protobuf helpers
 
-# List Protobuf versions
+# List Protobuf versions (must have bin/protoc)
 protoc_versions() {
-  ls -1 "$COMPONENTS/Protobuf"
+  local d v
+  [[ -d "$COMPONENTS/Protobuf" ]] || return 0
+  for d in "$COMPONENTS/Protobuf"/*; do
+    [[ -d "$d/bin" && -x "$d/bin/protoc" ]] || continue
+    v="${d:t}"
+    echo "$v"
+  done | sort -V
 }
 
 # Use a specific Protobuf version (append PATH + set PROTOBUF_HOME)

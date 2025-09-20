@@ -1,7 +1,15 @@
 # 76) Python (portable, toggle optional)
 
-# List Python versions under ~/Components/Python
-python_versions() { ls -1 "$COMPONENTS/Python" 2>/dev/null; }
+# List Python versions (must have bin/python3)
+python_versions() {
+  local d v
+  [[ -d "$COMPONENTS/Python" ]] || return 0
+  for d in "$COMPONENTS/Python"/*; do
+    [[ -d "$d/bin" && -x "$d/bin/python3" ]] || continue
+    v="${d:t}"
+    echo "$v"
+  done | sort -V
+}
 
 # Resolve a Python home with bin/ under ~/Components/Python/<ver>
 _python_home() {

@@ -1,8 +1,16 @@
 # 78) Node / npm (portable, toggle optional)
 # Node tarballs live under: ~/Components/Node/<ver>
 
-# List Node versions
-node_versions() { ls -1 "$COMPONENTS/Node" 2>/dev/null; }
+# List Node versions (must have bin/node)
+node_versions() {
+  local d v
+  [[ -d "$COMPONENTS/Node" ]] || return 0
+  for d in "$COMPONENTS/Node"/*; do
+    [[ -d "$d/bin" && -x "$d/bin/node" ]] || continue
+    v="${d:t}"
+    echo "$v"
+  done | sort -V
+}
 
 # Resolve a Node home with bin/ under ~/Components/Node/<ver>
 _node_home() {

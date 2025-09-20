@@ -1,7 +1,15 @@
 # 77) Golang (portable, toggle optional)
 
-# List Go versions under ~/Components/Golang
-go_versions() { ls -1 "$COMPONENTS/Golang" 2>/dev/null; }
+# List Go versions (must have bin/go)
+go_versions() {
+  local d v
+  [[ -d "$COMPONENTS/Golang" ]] || return 0
+  for d in "$COMPONENTS/Golang"/*; do
+    [[ -d "$d/bin" && -x "$d/bin/go" ]] || continue
+    v="${d:t}"
+    echo "$v"
+  done | sort -V
+}
 
 # Resolve a GOROOT with bin/ under ~/Components/Golang/<ver>
 _go_root() {

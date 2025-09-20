@@ -1,8 +1,14 @@
 # 73) Ant helpers
 
-# List Ant versions
+# List Ant versions (must have bin/ant)
 ant_versions() {
-  ls -1 "$COMPONENTS/Ant"
+  local d v
+  [[ -d "$COMPONENTS/Ant" ]] || return 0
+  for d in "$COMPONENTS/Ant"/*; do
+    [[ -d "$d/bin" && -x "$d/bin/ant" ]] || continue
+    v="${d:t}"
+    echo "$v"
+  done | sort -V
 }
 
 # Use a specific Ant version (append PATH + set ANT_HOME)
