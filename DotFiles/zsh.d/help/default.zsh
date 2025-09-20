@@ -15,7 +15,6 @@ grep -nr <pat> .       # portable fallback (always available)
 find . -type f         # portable file listing (fallback to fd)
 
 # Listing
-ls / ll / la / lt      # eza-enhanced ls (if ENABLE_EZA=true)
 catn / batp            # bat wrappers (numbers / pager)
 
 # Env Management
