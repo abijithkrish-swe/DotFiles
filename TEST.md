@@ -101,3 +101,16 @@ ls ~/.zshcache/vim/
 → should see swap, backup, undo files
 
 ---
+
+## 🧩 Observability (Mac only)
+
+- `btop` — system monitor (CPU/mem/net/disk UI)
+- `tldr CMD` — quick manpage with examples (try `tldr tar`)
+- `procs` — better `ps` (`procs -t` for tree, `procs -Q <pat>` to filter)
+
+Help:
+```sh
+devhelp obs
+```
+
+---

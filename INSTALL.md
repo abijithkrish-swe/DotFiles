@@ -103,6 +103,19 @@ mv ~/.viminfo ~/.zshcache/viminfo 2>/dev/null || true
 
 ---
 
+## 🧩 Optional Dev Tools (Mac only)
+
+These are convenient on your Mac but **not required** (and not used on prod):
+
+```sh
+brew install btop tldr procs
+```
+  - btop → modern system monitor UI (we keep top unchanged)
+  - tldr → simplified manuals (e.g., tldr tar)
+  - procs → a nicer ps (tree view, filters)
+  
+---
+
 ## 🛠 Troubleshooting
 
 - **tmux-256color**: if remote server doesn’t support it, set `TERM=xterm-256color`
