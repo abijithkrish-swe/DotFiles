@@ -16,6 +16,33 @@
 
 # --- constants / helpers -----------------------------------------------------
 
+# --- PATH management helpers (safe Zsh array versions) -----------------------
+
+# Append a directory to PATH safely using the Zsh 'path' array.
+# Removes duplicates before appending to keep order stable.
+__append_path() {
+  local d="$1"
+  [[ -d "$d" ]] || return 1
+  # Remove if already present, then append at the end.
+  path=(${path:#$d})
+  path+=("$d")
+}
+
+# Remove ALL ~/Components/Node/*/bin entries from PATH.
+# This filters any Node versions previously added by node_on/node_use.
+__node_path_strip_all() {
+  # Filter out any path element matching */Node/*/bin
+  path=(${path:#*/Node/*/bin})
+}
+
+# De-duplicate PATH entries while preserving the first occurrence order.
+# (Usually unnecessary now, since __append_path and __node_path_strip_all keep PATH clean.)
+__dedupe_path() {
+  # (u) = unique; preserves order of first appearance
+  path=(${(u)path})
+}
+
+
 # Recompute __node_root from $COMPONENTS (in case it changed)
 __node_refresh_root() {
   local comp="${COMPONENTS:-$HOME/Components}"
@@ -45,16 +72,6 @@ __node_normver() {
   [[ -n "$v" ]] || return 1
   v="${v#v}"
   printf '%s\n' "$v"
-}
-
-# append dir to PATH (only if not already present)
-__append_path() {
-  local d="$1"
-  [[ -d "$d" ]] || return 1
-  case ":$PATH:" in
-    *":$d:"*) ;;  # already present
-    *) export PATH="$PATH:$d" ;;
-  esac
 }
 
 # npm global prefix to XDG location (no sudo globally)
@@ -93,10 +110,22 @@ node_current() {
 }
 
 # explicitly switch to a version (appends bin, strips previous Component bins)
+# If no arg: use version from CWD, else NODE_DEFAULT_VERSION (if set).
 node_use() {
   __node_refresh_root
   local want
-  want="$(__node_normver "$1")" || { echo "Usage: node_use <version>"; return 1; }
+
+  if [[ -n "$1" ]]; then
+    want="$(__node_normver "$1")"
+  else
+    local vf
+    if vf="$(__node_find_version_here)"; then
+      want="$(__node_read_version_file "$vf")"
+    fi
+    [[ -z "$want" ]] && want="$(__node_normver "${NODE_DEFAULT_VERSION:-}")"
+  fi
+
+  [[ -n "$want" ]] || { echo "No version in CWD and NODE_DEFAULT_VERSION unset. Usage: node_use <version>"; return 1; }
 
   local bindir
   bindir="$(__node_bin_for "$want")" || { echo "Node $want not found under $__node_root"; return 1; }
@@ -114,59 +143,30 @@ node_use() {
   fi
 }
 
-# turn node support ON; optional version, else NODE_DEFAULT_VERSION
+# turn node support ON; optional arg; else use CWD pin, else NODE_DEFAULT_VERSION
 node_on() {
   __node_refresh_root
   local v
+
   if [[ -n "$1" ]]; then
     v="$(__node_normver "$1")"
   else
-    v="$(__node_normver "${NODE_DEFAULT_VERSION:-}")"
+    local vf
+    if vf="$(__node_find_version_here)"; then
+      v="$(__node_read_version_file "$vf")"
+    fi
+    [[ -z "$v" ]] && v="$(__node_normver "${NODE_DEFAULT_VERSION:-}")"
   fi
-  [[ -n "$v" ]] || { echo "Set NODE_DEFAULT_VERSION or pass a version: node_on <version>"; return 1; }
+
+  [[ -n "$v" ]] || { echo "No version in CWD and NODE_DEFAULT_VERSION unset. Usage: node_on <version>"; return 1; }
   node_use "$v"
-}
-
-# Remove ANY Components/Node/*/bin from PATH (robust)
-__node_path_strip_all() {
-  local IFS
-  IFS=':'
-  local seg
-  local new=""
-  for seg in $PATH; do
-    case "$seg" in
-      */Node/*/bin) continue ;;   # drop all Node bins under Components/Node
-    esac
-    new="${new:+$new:}$seg"
-  done
-  export PATH="$new"
-}
-
-# (Optional) de-duplicate PATH entries
-__dedupe_path() {
-  local IFS
-  IFS=':'
-  local seen=""
-  local seg
-  local out=""
-  for seg in $PATH; do
-    [[ -z "$seg" ]] && continue
-    case ":$seen:" in
-      *":$seg:"*) ;;         # already seen
-      *)
-        seen="${seen:+$seen:}$seg"
-        out="${out:+$out:}$seg"
-        ;;
-    esac
-  done
-  export PATH="$out"
 }
 
 # Turn Node OFF completely (strip all Node bins from PATH)
 node_off() {
   __node_refresh_root
   __node_path_strip_all
-  __dedupe_path
+  #__dedupe_path
   __NODE_ACTIVE_VERSION=""
   __NODE_ENABLED_FLAG="false"
   echo "Node support disabled (removed Components Node bins from PATH)."
@@ -189,6 +189,30 @@ node_set_project() {
   fi
   printf '%s\n' "$norm" > .node-version
   echo "Pinned project Node to $norm  (wrote .node-version)"
+}
+
+# --- project version detection (current dir only) ----------------------------
+# Checks ONLY the CWD for one of: .node-version, .nvmrc, .tool-versions
+__node_find_version_here() {
+  local f
+  for f in .node-version .nvmrc .tool-versions; do
+    [[ -f "./$f" ]] && { printf '%s\n' "./$f"; return 0; }
+  done
+  return 1
+}
+
+__node_read_version_file() {
+  local file="$1"
+  local v=""
+  case "${file:t}" in
+    .node-version|.nvmrc)
+      v="$(grep -E '^[[:space:]]*[0-9v]' "$file" | head -1 | tr -d '[:space:]')"
+      ;;
+    .tool-versions)
+      v="$(awk '$1=="nodejs"{print $2; exit}' "$file")"
+      ;;
+  esac
+  [[ -n "$v" ]] && printf '%s\n' "${v#v}"
 }
 
 # --- lazy shims --------------------------------------------------------------
