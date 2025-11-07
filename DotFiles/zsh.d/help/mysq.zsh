@@ -4,56 +4,80 @@ cat <<'EOF'
 MySQL — Quick Reference
 =======================
 
-Your portable layout (per version)
-----------------------------------
+Portable layout (per version)
+-----------------------------
 ~/Components/Mysql/<VER>/
-  ├─ Core/      # binaries
-  ├─ Data/      # datadir (InnoDB, binlogs)
-  ├─ Conf/      # my.cnf lives here
-  └─ Log/       # slow.log, error.log, general.log (binlogs stay in Data)
+  ├─ Core/      # binaries (mysql, mysqld)
+  ├─ Data/      # datadir (InnoDB, binlogs, ib*)
+  ├─ Conf/      # my.cnf (optional)
+  ├─ Log/       # error.log, slow.log, query.log
+  └─ Run/       # mysqld.sock, mysqld.pid, run.env (auto-generated)
 
-Helper commands (from your zsh modules)
----------------------------------------
-mysqlv                       # list installed versions
-mysql_conf_inspect <ver>     # print key values from Conf/my.cnf
-mysql_init <ver>             # initialize Data/ (refuses if not empty)
-mysql_start <ver>            # start mysqld with Conf/my.cnf
-mysql_ready <ver> [timeout]  # wait until server responds
-mysql_cli [ver] [args...]    # mysql client for default or specific version
-mysql_stop <ver>             # stop the server (mysqladmin/pidfile)
-mysql_set_default <ver>      # append Core/bin to PATH for client
+Core helper commands
+--------------------
+mysql_versions                 # list available valid versions
+use_mysql <ver>                # switch PATH & envs to version (adds Core/bin)
+mysql_start [--port N] [ver]   # start server; asks to stop or auto-picks free port
+mysql_stop [ver]               # cleanly stop server (mysqladmin or pid)
+mysql_cli [args...]            # mysql client for current version; auto uses socket
+mysql_current                  # show active version, status, port, pid, paths
 
-Common client usage
--------------------
+Quick examples
+--------------
+# switch to version and start it
+use_mysql 8.0.43
+mysql_start
+
+# connect (socket auto-detected)
+mysql_cli -uroot -p
+
+# start another version in parallel on new port
+mysql_start --port 3310 5.7.44
+
+# stop currently running instance
+mysql_stop
+
+# view info on active setup
+mysql_current
+
+Config & data locations
+-----------------------
+Default components root:   $HOME/Components/Mysql
+Default version:           (from $DEFAULT_MYSQL)
+Each version defines:
+  Data/:      actual MySQL datadir
+  Log/:       error / slow / query logs
+  Run/:       socket, pid, run.env (port, pid info)
+  Conf/my.cnf optional configuration file
+
+Maintenance & CLI basics
+------------------------
 mysql -u root -p
 mysql -h 127.0.0.1 -P 3306 -u root -p
-mysql --local-infile=1 -u root -p
+mysqldump -u root -p --single-transaction appdb > dump.sql
+mysqladmin -u root -p shutdown
 
-Useful SQL snippets
--------------------
+Common SQL
+----------
 SHOW DATABASES;
 CREATE DATABASE appdb;
 CREATE USER 'app'@'%' IDENTIFIED BY 'secret';
 GRANT ALL ON appdb.* TO 'app'@'%';
 FLUSH PRIVILEGES;
-
 SHOW VARIABLES LIKE 'log_error';
-SHOW VARIABLES LIKE 'slow_query_log%';
 SHOW GLOBAL STATUS LIKE 'Threads_connected';
 SHOW ENGINE INNODB STATUS\G
-
-Maintenance
------------
-mysqldump -u root -p --single-transaction appdb > dump.sql
-mysqladmin -u root -p shutdown
 
 Troubleshooting
 ---------------
 • Can't connect: check socket vs TCP; use -h 127.0.0.1 to force TCP.
-• Init fails: ensure Data/ empty; remove lost+found on macOS if present.
-• Port busy: lsof -i :3306 | awk 'NR>1{print $2}' | xargs kill -9
+• Data init fails: ensure Data/ empty; remove lost+found if present (macOS).
+• Port busy: mysql_start auto-picks a free port (starting 3307) or ask to stop existing.
+• To reset: delete Run/run.env and start again.
+
 EOF
 }
 
 _devhelp_register "mysql" _devhelp_mysql
-# (optional) alias in your zshrc: alias mysqlhelp='devhelp mysql'
+# optional zshrc alias:
+# alias mysqlhelp='devhelp mysql'
