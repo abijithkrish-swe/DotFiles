@@ -15,22 +15,27 @@
 #   export NODE_DEFAULT_VERSION="20.11.1"   # used by lazy shims & node_on (if no arg)
 
 # --- constants / helpers -----------------------------------------------------
-export COMPONENTS="${COMPONENTS:-$HOME/Components}"
-__node_root="$COMPONENTS/Node"
 
-# remove any Components/Node/*/bin segments from PATH (safe, idempotent)
-__node_path_strip() {
-  local IFS=':' seg new=""
-  for seg in $PATH; do
-    [[ "$seg" == "$__node_root"/*/bin ]] && continue
-    new="${new:+$new:}$seg"
-  done
-  export PATH="$new"
+# Recompute __node_root from $COMPONENTS (in case it changed)
+__node_refresh_root() {
+  local comp="${COMPONENTS:-$HOME/Components}"
+  comp="${comp%/}"
+  if [[ "${comp:t}" == "Node" && -d "$comp" ]]; then
+    __node_root="$comp"
+  elif [[ -d "$comp/Node" ]]; then
+    __node_root="$comp/Node"
+  else
+    __node_root="$HOME/Components/Node"
+  fi
 }
+
+# Initialize once at load
+__node_refresh_root
 
 # compute absolute bin dir for a version
 __node_bin_for() {
-  local v="$1" base="$__node_root/$v"
+  local v="$1"
+  local base="$__node_root/$v"
   [[ -x "$base/bin/node" ]] && printf '%s/bin\n' "$base" || return 1
 }
 
@@ -61,8 +66,11 @@ typeset -g __NODE_ACTIVE_VERSION=""
 typeset -g __NODE_ENABLED_FLAG="false"
 
 # --- public commands ---------------------------------------------------------
-# list available versions in Components
+
+# list available versions in Components (only valid installs)
 node_versions() {
+  __node_refresh_root
+  local d
   for d in "$__node_root"/*; do
     [[ -x "$d/bin/node" ]] && basename "$d"
   done 2>/dev/null | sort -V
@@ -70,6 +78,7 @@ node_versions() {
 
 # show where the current node comes from
 node_where() {
+  __node_refresh_root
   if command -v node >/dev/null 2>&1; then
     command -v node
   else
@@ -79,18 +88,22 @@ node_where() {
 
 # current node -v (or 'none')
 node_current() {
+  __node_refresh_root
   if command -v node >/dev/null 2>&1; then node -v; else echo "none"; fi
 }
 
 # explicitly switch to a version (appends bin, strips previous Component bins)
 node_use() {
-  local want="$(__node_normver "$1")" || { echo "Usage: node_use <version>"; return 1; }
-  local bindir; bindir="$(__node_bin_for "$want")" || { echo "Node $want not found under $__node_root"; return 1; }
+  __node_refresh_root
+  local want
+  want="$(__node_normver "$1")" || { echo "Usage: node_use <version>"; return 1; }
 
-  __node_path_strip
+  local bindir
+  bindir="$(__node_bin_for "$want")" || { echo "Node $want not found under $__node_root"; return 1; }
+
+  __node_path_strip_all
   __append_path "$bindir"
 
-  # Confirm availability
   if command -v node >/dev/null 2>&1; then
     __NODE_ACTIVE_VERSION="$want"
     __NODE_ENABLED_FLAG="true"
@@ -103,6 +116,7 @@ node_use() {
 
 # turn node support ON; optional version, else NODE_DEFAULT_VERSION
 node_on() {
+  __node_refresh_root
   local v
   if [[ -n "$1" ]]; then
     v="$(__node_normver "$1")"
@@ -113,23 +127,62 @@ node_on() {
   node_use "$v"
 }
 
-# disable node support (remove Component Node bins from PATH)
+# Remove ANY Components/Node/*/bin from PATH (robust)
+__node_path_strip_all() {
+  local IFS
+  IFS=':'
+  local seg
+  local new=""
+  for seg in $PATH; do
+    case "$seg" in
+      */Node/*/bin) continue ;;   # drop all Node bins under Components/Node
+    esac
+    new="${new:+$new:}$seg"
+  done
+  export PATH="$new"
+}
+
+# (Optional) de-duplicate PATH entries
+__dedupe_path() {
+  local IFS
+  IFS=':'
+  local seen=""
+  local seg
+  local out=""
+  for seg in $PATH; do
+    [[ -z "$seg" ]] && continue
+    case ":$seen:" in
+      *":$seg:"*) ;;         # already seen
+      *)
+        seen="${seen:+$seen:}$seg"
+        out="${out:+$out:}$seg"
+        ;;
+    esac
+  done
+  export PATH="$out"
+}
+
+# Turn Node OFF completely (strip all Node bins from PATH)
 node_off() {
-  __node_path_strip
+  __node_refresh_root
+  __node_path_strip_all
+  __dedupe_path
   __NODE_ACTIVE_VERSION=""
   __NODE_ENABLED_FLAG="false"
-  echo "Node support disabled (Components paths removed from PATH)."
+  echo "Node support disabled (removed Components Node bins from PATH)."
 }
 
 # write per-project version file (.node-version in cwd). If no arg, use current node -v
 node_set_project() {
-  local v norm
+  local v
+  local norm
   if [[ -n "$1" ]]; then
     norm="$(__node_normver "$1")"
   else
     # if node is active, capture trimmed version; else require arg
     if command -v node >/dev/null 2>&1; then
-      v="$(node -v)"; norm="$(__node_normver "$v")"
+      v="$(node -v)"
+      norm="$(__node_normver "$v")"
     else
       echo "No active node. Usage: node_set_project <version>"; return 1
     fi
@@ -148,14 +201,31 @@ __node_lazy_bootstrap() {
 
   # If a non-Components node exists, do nothing (respect system install)
   if command -v node >/dev/null 2>&1; then
-    local realbin; realbin="$(command -v node)"
+    local realbin
+    realbin="$(command -v node)"
     [[ "$realbin" != "$__node_root/"*"/bin/node" ]] && return 0
   fi
 
   # Else try default
-  local def="$(__node_normver "${NODE_DEFAULT_VERSION:-}")"
+  local def
+  def="$(__node_normver "${NODE_DEFAULT_VERSION:-}")"
   [[ -n "$def" ]] || return 0
   node_use "$def" >/dev/null 2>&1 || true
+}
+
+# --- node debug -------------------------------------------------------------
+# Diagnose why a version isn't detected
+node_diag() {
+  local v="$1"
+  local root="${COMPONENTS:-$HOME/Components}/Node"
+  local base="$root/$v"
+  echo "COMPONENTS=$root"
+  echo "Checking: $base"
+  ls -ld "$base" 2>/dev/null || echo "❌ $base missing"
+  ls -l "$base/bin" 2>/dev/null || echo "ℹ️ No direct bin/ under $base"
+  command -v node >/dev/null && echo "Current node: $(command -v node)" || echo "Current node: none"
+  echo "Searching for */bin/node under $base (maxdepth 2):"
+  find "$base" -maxdepth 2 -type f -name node -path "*/bin/node" -print 2>/dev/null
 }
 
 # Define function shims only if "node" is not an external command right now.
@@ -187,7 +257,7 @@ fi
 # • Per-project:
 #     node_set_project 20.11.1   # writes .node-version
 #     # Later you can read this and call node_use "$(cat .node-version)" on cd (autoswitch module).
-
+#
 # Optional: set a per-user npm prefix (avoids sudo for globals)
 # npm_prefix_user() {
 #   local prefix="$HOME/.npm-global"
