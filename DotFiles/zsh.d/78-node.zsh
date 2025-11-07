@@ -63,7 +63,9 @@ typeset -g __NODE_ENABLED_FLAG="false"
 # --- public commands ---------------------------------------------------------
 # list available versions in Components
 node_versions() {
-  ls -1 "$__node_root" 2>/dev/null | sort -V
+  for d in "$__node_root"/*; do
+    [[ -x "$d/bin/node" ]] && basename "$d"
+  done 2>/dev/null | sort -V
 }
 
 # show where the current node comes from

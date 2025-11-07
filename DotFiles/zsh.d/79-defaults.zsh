@@ -8,7 +8,7 @@ export DEFAULT_REDIS=7.4.5
 export DEFAULT_ANT=1.10
 export DEFAULT_PROTOBUF=3.0
 # export DEFAULT_GO=1.22.0
-# export DEFAULT_NODE=20.11.1
+export NODE_DEFAULT_VERSION="20.19.5"
 # export DEFAULT_PYTHON=3.11.6
 
 # Apply only for interactive shells
