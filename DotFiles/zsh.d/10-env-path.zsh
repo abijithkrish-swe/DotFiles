@@ -45,6 +45,20 @@ setopt HIST_IGNORE_ALL_DUPS
 setopt HIST_REDUCE_BLANKS
 setopt HIST_IGNORE_SPACE
 
+# --- VS Code-specific history behavior ---
+if [[ "$TERM_PROGRAM" == "vscode" ]]; then
+  # 1) Separate persistent history file just for VS Code:
+  export HISTFILE="$ZSH_CACHE_DIR/zsh_history_vscode"
+
+  # If you normally use shared history, turn it off only in VS Code:
+  unsetopt share_history 2>/dev/null
+
+  # Recommended history opts (tweak as you like):
+  setopt inc_append_history       # write as you go, but only to VS Code's file
+  setopt hist_ignore_all_dups
+  setopt hist_ignore_space
+fi
+
 # --- Completions dump (cache) -----------------------------------------------
 # Move .zcompdump out of $HOME and let OMZ use it.
 export ZSH_COMPDUMP="$ZSH_CACHE_DIR/.zcompdump"

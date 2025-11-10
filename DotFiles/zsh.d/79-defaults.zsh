@@ -11,6 +11,8 @@ export DEFAULT_PROTOBUF=3.0
 export NODE_DEFAULT_VERSION="20.19.5"
 # export DEFAULT_PYTHON=3.11.6
 
+export COLIMA_HOME="$HOME/.config/colima"
+
 # Apply only for interactive shells
 case $- in
   *i*)
