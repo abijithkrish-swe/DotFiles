@@ -12,6 +12,8 @@ export NODE_DEFAULT_VERSION="20.19.5"
 # export DEFAULT_PYTHON=3.11.6
 
 export COLIMA_HOME="$HOME/.config/colima"
+# XDG for Docker
+export DOCKER_CONFIG="$HOME/.config/docker"   # -> ~/.config/docker
 
 # Apply only for interactive shells
 case $- in
