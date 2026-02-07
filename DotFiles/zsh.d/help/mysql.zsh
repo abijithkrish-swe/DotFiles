@@ -15,12 +15,16 @@ Portable layout (per version)
 
 Core helper commands
 --------------------
-mysql_versions                 # list available valid versions
-use_mysql <ver>                # switch PATH & envs to version (adds Core/bin)
+mysql_list                     # list available valid versions
+use_mysql <ver>|off            # switch PATH & envs to version (adds Core/bin)
 mysql_start [--port N] [ver]   # start server; asks to stop or auto-picks free port
 mysql_stop [ver]               # cleanly stop server (mysqladmin or pid)
 mysql_cli [args...]            # mysql client for current version; auto uses socket
 mysql_current                  # show active version, status, port, pid, paths
+mysql_clear                    # remove MySQL from PATH
+
+Aliases:
+  mysql_versions -> mysql_list
 
 Quick examples
 --------------

@@ -12,35 +12,53 @@ _jdk_home() {
   return 1
 }
 
-# jdk <ver|off>
-#   jdk 11 | 17 | 25  -> sets JAVA_HOME and appends bin to PATH
-#   jdk off           -> unsets JAVA_HOME (PATH left untouched)
-jdk() {
-  local v="$1"
-  case "$v" in
-    off|"")
-      unset JAVA_HOME
-      hash -r
-      java -version 2>/dev/null || echo "JDK off"
-      ;;
-    *)
-      local home
-      home="$(_jdk_home "$v")" || { echo "JDK $v not found under $COMPONENTS/JDK"; return 1; }
-      export JAVA_HOME="$home"
-      # append (safer: system/brew JDKs win if present)
-      export PATH="$PATH:$JAVA_HOME/bin"
-      hash -r
-      java -version
-      ;;
-  esac
+# List available JDKs
+jdk_list() {
+  if [ -d "$COMPONENTS/JDK" ]; then
+    echo "Available JDKs in $COMPONENTS/JDK:"
+    ls -1 "$COMPONENTS/JDK"
+  else
+    echo "No JDKs found in $COMPONENTS/JDK"
+  fi
 }
 
-# Shortcuts
-alias jdk11='jdk 11'
-alias jdk17='jdk 17'
-alias jdk25='jdk 25'
-alias jdkoff='jdk off'
+# Switch JDK version
+# use_jdk 11 -> sets JAVA_HOME and prepends bin to PATH
+# use_jdk off -> unsets JAVA_HOME and removes bin from PATH
+use_jdk() {
+  local v="$1"
+  if [[ "$v" == "off" || -z "$v" ]]; then
+      unset JAVA_HOME
+      # clear the managed path
+      component_switch_path "JAVA_ACTIVE_BIN" ""
+      component_set_status "JDK" "off"
+      echo "JDK disabled (JAVA_HOME unset)"
+      return
+  fi
 
-# ---------------------------------------------------------------------
-# 72) Redis helpers
-# ---------------------------------------------------------------------
+  local home
+  home="$(_jdk_home "$v")" || { echo "JDK $v not found under $COMPONENTS/JDK"; return 1; }
+  
+  export JAVA_HOME="$home"
+  # Swaps the path cleanly
+  component_switch_path "JAVA_ACTIVE_BIN" "$JAVA_HOME/bin"
+  component_set_status "JDK" "$v"
+  
+  echo "Switched to JDK ($v)"
+  java -version
+}
+
+# Aliases (Rule of 5 and compat)
+alias jdk='use_jdk'
+alias jdk_use='use_jdk'
+alias jdk_clear='use_jdk off'
+
+alias jdk11='use_jdk 11'
+alias jdk17='use_jdk 17'
+alias jdk21='use_jdk 21'
+alias jdk25='use_jdk 25'
+alias jdkoff='use_jdk off'
+
+# Enable completion
+load_components_completion "use_jdk" "JDK"
+

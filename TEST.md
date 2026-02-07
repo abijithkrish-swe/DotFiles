@@ -75,9 +75,15 @@ starship --version
 
 ## 🧩 Secrets
 
+Check vault status:
 ```sh
-load_secrets
-show_secret SOME_KEY
+vault_ls
+```
+
+Add and verify a test key:
+```sh
+add_secret TEST_KEY
+show_secret TEST_KEY
 ```
 
 ---

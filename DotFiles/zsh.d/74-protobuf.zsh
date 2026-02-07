@@ -1,34 +1,38 @@
-# 74) Protobuf helpers
+# 74) Protobuf
+# Layout: ~/Components/Protobuf/<ver>/bin/protoc
 
-# List Protobuf versions (must have bin/protoc)
-protoc_versions() {
-  local d v
+protobuf_list() {
+  local d
   [[ -d "$COMPONENTS/Protobuf" ]] || return 0
+  echo "Available Protobuf versions:"
   for d in "$COMPONENTS/Protobuf"/*; do
-    [[ -d "$d/bin" && -x "$d/bin/protoc" ]] || continue
-    v="${d:t}"
-    echo "$v"
+     [[ -x "$d/bin/protoc" ]] && echo "  ${d:t}"
   done | sort -V
 }
 
-# Use a specific Protobuf version (append PATH + set PROTOBUF_HOME)
-# If no version passed, falls back to DEFAULT_PROTOBUF (if set).
 use_protoc() {
-  local v="${1:-$DEFAULT_PROTOBUF}"
-  [[ -z "$v" ]] && { echo "Usage: use_protoc <version>  (or set DEFAULT_PROTOBUF)"; return 1; }
-
-  local root="$COMPONENTS/Protobuf/$v"
-  if [ -d "$root/bin" ]; then
-    export PROTOBUF_HOME="$root"
-    export PATH="$PATH:$PROTOBUF_HOME/bin"   # append (safer)
-    echo "Using Protobuf $v from $PROTOBUF_HOME"
-    protoc --version 2>/dev/null || echo "protoc not found in $PROTOBUF_HOME/bin"
-  else
-    echo "Protobuf $v not found under $COMPONENTS/Protobuf"
-    return 1
+  local v="$1"
+  component_set_status "Protobuf" "$v"
+  
+  if [[ "$v" == "off" || -z "$v" ]]; then
+    protobuf_clear
+    return
   fi
+  local home="$COMPONENTS/Protobuf/$v"
+  [[ -d "$home" ]] || { echo "Protobuf $v not found"; return 1; }
+  
+  # Usually just needs PATH
+  component_switch_path "_PROTO_ACTIVE_BIN" "$home/bin"
+  echo "Switched to Protobuf $v"; protoc --version
 }
 
-# ---------------------------------------------------------------------
-# 75) MySQL helpers
-# ---------------------------------------------------------------------
+protobuf_clear() {
+  component_switch_path "_PROTO_ACTIVE_BIN" ""
+  echo "Protobuf removed"
+}
+
+alias protobuf_versions='protobuf_list'
+alias protobuf_use='use_protoc'  # Legacy/Inverse alias
+alias protobuf_off='protobuf_clear'
+
+load_components_completion "use_protoc" "Protobuf"

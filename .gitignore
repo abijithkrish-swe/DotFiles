@@ -5,6 +5,7 @@
 # --- Secrets (never commit) ---
 DotFiles/config/secrets/
 zshrc_backup_final
+phase1_old.zip
 
 # --- Runtime / cache dirs ---
 .zshcache/

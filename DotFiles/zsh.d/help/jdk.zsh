@@ -12,13 +12,16 @@ Your portable layout
 
 Helper commands (from your zsh modules)
 ---------------------------------------
-jdk <ver>|off        # switch JAVA_HOME and append bin/ to PATH
-  e.g. jdk 17        # set JDK 17
-       jdk off       # unset JAVA_HOME, fallback system Java
+jdk_list             # list available JDK versions
+use_jdk <ver>|off    # switch JAVA_HOME and append bin/ to PATH
+  e.g. use_jdk 17    # set JDK 17
+       use_jdk off   # unset JAVA_HOME, fallback system Java
 
 Shortcuts:
+  jdk <ver>|off      # alias for use_jdk
   jdk11              # activate JDK 11
   jdk17              # activate JDK 17
+  jdk21              # activate JDK 21
   jdk25              # activate JDK 25
 
 Verify active JDK

@@ -9,6 +9,9 @@ min_time = 1000  # show if >1s (instead of default 2s)
 format = '\[[⏱ $duration]($style)\]'
 
 [character]
+#success_symbol = "[❯](purple)"
+#error_symbol = "[❯](red)"
+#vimcmd_symbol = "[❮](green)"
 success_symbol = "[](bold purple)"
 error_symbol   = "[](bold red)"
 vimcmd_symbol  = "[](bold green)"

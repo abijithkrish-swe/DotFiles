@@ -31,8 +31,15 @@ fi
 # --- Defaults (light, safe) -------------------------------------------------
 # Fast file list using ripgrep; respects .gitignore; includes dotfiles; follows symlinks.
 # (Only set if user hasn't already.)
-if [[ -z "${FZF_DEFAULT_COMMAND:-}" ]] && command -v rg >/dev/null 2>&1; then
-  export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git"'
+if [[ -z "${FZF_DEFAULT_COMMAND:-}" ]]; then
+  if command -v fd >/dev/null 2>&1; then
+    # fd is faster and colors output by default
+    export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix --hidden --follow --exclude .git'
+    export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"
+  elif command -v rg >/dev/null 2>&1; then
+    # ripgrep fallback
+    export FZF_DEFAULT_COMMAND='rg --files --hidden --follow --glob "!.git"'
+  fi
 fi
 
 # Keep Ctrl-R results ranked & exact by default (only matters if Ctrl-R is enabled later)
@@ -61,6 +68,20 @@ __fzf_add_ui_opts() {
 # BASICS (opt-in): tiny helpers, no keybinding changes
 # ---------------------------------------------------------------------
 if [[ "${ENABLE_FZF_BASICS:-false}" == "true" ]]; then
+  # Kill process picker
+  fkill() {
+      local pid
+      if [ "$UID" != "0" ]; then
+          pid=$(ps -f -u $UID | sed 1d | fzf -m | awk '{print $2}')
+      else
+          pid=$(ps -ef | sed 1d | fzf -m | awk '{print $2}')
+      fi
+      
+      if [ "x$pid" != "x" ]; then
+          echo $pid | xargs kill -${1:-9}
+      fi
+  }
+
   # Pick a file → open in Vim (Esc to cancel, no action)
   fvim()   { local f; f="$(fzf)" || return; vim -- "$f"; }
 

@@ -1,32 +1,28 @@
 # --- eza help module --------------------------------------------------------
-# Place in: ~/.zsh.d/help/eza.zsh
-
 _devhelp_eza() {
   cat <<'EOF'
 eza — quick reference
 =====================
 
-Standard alphabetical (closer to prod `ls`):
-  ll   → eza -lh              # long, human sizes
-  la   → eza -lha             # all files
-  lg   → eza -lh --git        # long, human + git status
-  lt   → eza -T --level=2     # tree view (compact, 2 levels)
+Standard Aliases (replacing ls):
+  ls   → eza --icons --git
+  ll   → eza -l --icons --git --header
+  la   → eza -la --icons --git --header
+  lt   → eza --tree --level=2
 
-"Dirs first" variants (like GUI file browsers):
-  lld  → eza -lh --group-directories-first
-  lad  → eza -lha --group-directories-first
-  lgd  → eza -lh --git --group-directories-first
-  ltd  → eza -T --level=2 --group-directories-first
+Sorted Views:
+  lS   → ll --sort=size       # Largest first
+  lm   → ll --sort=modified   # Newest first
 
-Optional (requires Nerd Fonts):
-  lsi  → eza -lha --icons --group-directories-first
+Note: All aliases use `--group-directories-first` by default.
+
+Tree Views:
+  lt   → 2 levels deep
+  ltt  → 3 levels deep
 
 Tips:
-  • Keep `ll`, `la`, `lg`, `lt` for muscle memory (closer to `ls` on prod).
-  • Use the `d` variants when you want directories grouped first.
-  • Add `--git` when working inside repos for status indicators.
+  • `eza` respects .gitignore if `--git` is passed (default in `ls` alias).
+  • Use `\ls` to bypass eza and use standard ls.
 EOF
 }
-
-# Register topic name
 _devhelp_register "eza" _devhelp_eza

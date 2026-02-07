@@ -1,6 +1,4 @@
-{
-  "currentContext": "colima",
-  "credsStore": "osxkeychain",
+{ 
   "auths": {},
   "proxies": {},
   "experimental": "disabled"

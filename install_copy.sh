@@ -29,6 +29,7 @@ APPLY=0
 RESTORE=0
 RESTORE_TS=""
 FORCE=0
+SHOW_DIFF=0
 
 say() { printf '%s\n' "$*"; }
 die() { say "❌ $*"; exit 1; }
@@ -42,6 +43,7 @@ Usage: $0 [--apply] [--force] [--restore [timestamp]] [--list-backups]
   --force          Overwrite existing files (backed up to ./Backup/<ts>)
   --restore [ts]   Restore from latest (no ts) or specific timestamp dir
   --list-backups   Show available backup timestamps
+  --config-diff    Show diffs between repo config and installed ~/.config
 
 Examples:
   $0                    # preview what would happen
@@ -60,6 +62,7 @@ while [ $# -gt 0 ]; do
     --apply)        APPLY=1; DRYRUN=0 ;;
     --force)        FORCE=1 ;;
     --restore)      RESTORE=1; RESTORE_TS="${2:-}"; shift || true ;;
+    --config-diff)  SHOW_DIFF=1 ;;
     --list-backups) ls -1 "$BACKUP_ROOT" 2>/dev/null || echo "(no backups)"; exit 0 ;;
     -h|--help)      usage ;;
     *)              usage ;;
@@ -68,6 +71,29 @@ while [ $# -gt 0 ]; do
 done
 
 [ -d "$REPO_DIR/DotFiles" ] || die "Missing DotFiles/ in repo root"
+
+# --- diff config helper ---
+diff_config() {
+  say "🔍 Diffing ~/.config against repo..."
+  if [ -d "$REPO_DIR/DotFiles/config" ]; then
+    find "$REPO_DIR/DotFiles/config" -mindepth 1 -maxdepth 1 -print | while read -r item; do
+      name="$(basename "$item")"
+      installed="$HOME/.config/$name"
+      if [ -e "$installed" ]; then
+        say "  Checking $name..."
+        diff -r --color=auto "$item" "$installed" || true
+      else
+        say "  Checking $name... (Not installed)"
+      fi
+    done
+  fi
+  say "🏁 Diff complete."
+}
+
+if [ "$SHOW_DIFF" -eq 1 ]; then
+  diff_config
+  exit 0
+fi
 
 # --- helpers ---
 backup_dest_for() {
@@ -109,17 +135,20 @@ do_copy_dir() {
   src="$1"; dest="$2"
   if [ -e "$dest" ]; then
     if [ "$FORCE" -eq 1 ]; then
-      bkp="$(backup_dest_for "$dest")"
-      say "🔁 Backup dir  $dest  →  $bkp"
-      if [ "$DRYRUN" -eq 0 ]; then
-        mkdir -p "$(dirname "$bkp")"
-        if command -v rsync >/dev/null 2>&1; then
-          rsync -a "$dest"/ "$bkp"/
-        else
-          mkdir -p "$bkp"
-          cp -R "$dest"/. "$bkp"/
+      say "🔍 Scanning for conflicts in $dest..."
+      # Strategy B: Only backup specific files we are about to overwrite
+      find "$src" -type f | while read -r sfile; do
+        rel="${sfile#"$src"/}"
+        tfile="$dest/$rel"
+        if [ -e "$tfile" ]; then
+           bkp="$(backup_dest_for "$tfile")"
+           say "  🔁 Backup file $tfile"
+           if [ "$DRYRUN" -eq 0 ]; then
+             mkdir -p "$(dirname "$bkp")"
+             cp -f "$tfile" "$bkp"
+           fi
         fi
-      fi
+      done
     else
       say "⏭️  Skip dir (exists) $dest"
       return 0
@@ -133,6 +162,37 @@ do_copy_dir() {
     else
       mkdir -p "$dest"
       cp -R "$src"/. "$dest"/
+    fi
+  fi
+}
+
+do_sync_dir() {
+  src="$1"; dest="$2"
+  if [ -e "$dest" ]; then
+    if [ "$FORCE" -eq 1 ]; then
+      bkp="$(backup_dest_for "$dest")"
+      say "🔁 Backup SYNC target $dest  →  $bkp"
+      if [ "$DRYRUN" -eq 0 ]; then
+        mkdir -p "$(dirname "$bkp")"
+        if command -v rsync >/dev/null 2>&1; then rsync -a "$dest"/ "$bkp"/; else cp -R "$dest" "$bkp"; fi
+      fi
+    else
+      # If not forcing, we can't safely "delete" files from dest, so warn?
+      # Or fall back to copy?
+      say "⚠️  Existing $dest found. Using --force required for Clean Sync (delete stale files)."
+      say "    Falling back to standard Merge-Copy."
+      do_copy_dir "$src" "$dest"
+      return
+    fi
+  fi
+  say "🔄 SYNC dir  $src  →  $dest (Mirror content)"
+  if [ "$DRYRUN" -eq 0 ]; then
+    mkdir -p "$dest"
+    if command -v rsync >/dev/null 2>&1; then
+      rsync -a --delete "$src"/ "$dest"/
+    else
+      rm -rf "$dest"
+      cp -R "$src" "$dest"
     fi
   fi
 }
@@ -185,8 +245,8 @@ say "🔎 Mode: $( [ "$DRYRUN" -eq 1 ] && echo DRY-RUN || echo APPLY ), force=$F
 do_copy_file "$REPO_DIR/DotFiles/zshrc" "$HOME/.zshrc"
 do_copy_file "$REPO_DIR/DotFiles/vimrc" "$HOME/.vimrc"
 
-# zsh.d
-do_copy_dir  "$REPO_DIR/DotFiles/zsh.d" "$HOME/.zsh.d"
+# zsh.d (clean sync to remove outdated scripts)
+do_sync_dir  "$REPO_DIR/DotFiles/zsh.d" "$HOME/.zsh.d"
 
 # ~/.config (merge each item under DotFiles/config/)
 mkdir -p "$HOME/.config"

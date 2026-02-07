@@ -1,20 +1,22 @@
 # ---------------------------------------------------------------------
 # 75) MySQL helpers — safe list, switch, start/stop/cli
-# Layout expected:
+# Portable per-version layout:
 #   $COMPONENTS/Mysql/<version>/
-#       Core/ → binaries
-#       Data/ → database files
-#       Conf/ → my.cnf
-#	      Run/
+#       Core/ → binaries (bin/mysql, bin/mysqld)
+#       Data/ → database files (datadir)
+#       Conf/ → my.cnf (optional)
+#       Run/  → runtime files (mysqld.sock, mysqld.pid, run.env)
 #       Log/  → logs (error.log, slow.log, query.log)
-# Only versions with Core/bin/mysql are considered valid.
-# Valid version requires Core/bin/mysql AND Core/bin/mysqld.
+# Only versions with Core/bin/mysql AND Core/bin/mysqld are valid.
 # ---------------------------------------------------------------------
 
 setopt LOCAL_OPTIONS
 
 : "${COMPONENTS:="$HOME/Components"}"
 : "${DEFAULT_MYSQL:="8.0.43"}"
+
+# Optional: set to "1" to keep a stable client socket symlink at ~/.mysql/current.sock
+: "${MYSQL_UPDATE_SYMLINK:="0"}"
 
 typeset -g _MYSQL_ACTIVE_BINDIR=""
 typeset -g MYSQL_VERSION=""
@@ -28,17 +30,11 @@ typeset -g MYSQL_PORT=""
 
 # --- Internals --------------------------------------------------------
 
+# Return Core/bin path for a valid version
 _mysql_bindir_for() {
-  local v="$1"
-  local root="$COMPONENTS/Mysql/$v/Core/bin"
-  if [[ ! -x "$root/mysql" ]]; then
-    root="$COMPONENTS/Mysql/$v/bin"
-  fi
-  if [[ -x "$root/mysql" && -x "$root/mysqld" ]]; then
-    print -r -- "$root"
-    return 0
-  fi
-  return 1
+  local v="$1" root="$COMPONENTS/Mysql/$v/Core/bin"
+  [[ -x "$root/mysql" && -x "$root/mysqld" ]] || return 1
+  print -r -- "$root"
 }
 
 _mysql_root_for() { print -r -- "$COMPONENTS/Mysql/$1"; }
@@ -46,40 +42,36 @@ _mysql_root_for() { print -r -- "$COMPONENTS/Mysql/$1"; }
 _mysql_has_arg() {  # _mysql_has_arg "--socket" "$@"
   local needle="$1"; shift
   local a
-  for a in "$@"; { [[ "$a" == ${needle}(|=*) ]] && return 0; }
+  for a in "$@"; do [[ "$a" == ${needle}(|=*) ]] && return 0; done
   return 1
 }
 
 _mysql_running_pids_for_user() {
-  # pids of mysqld owned by current user
   pgrep -u "$UID" -x mysqld 2>/dev/null
 }
 
 _find_free_port() {
-  # find a free TCP port starting at $1 (default 3307)
   local p="${1:-3307}"
   while :; do
     if command -v lsof >/dev/null 2>&1; then
       lsof -iTCP:"$p" -sTCP:LISTEN >/dev/null 2>&1 || { echo "$p"; return 0; }
+    elif command -v nc >/dev/null 2>&1; then
+      nc -z localhost "$p" >/dev/null 2>&1 || { echo "$p"; return 0; }
     else
-      # Fallback: try binding using nc if available; otherwise just return p
-      if command -v nc >/dev/null 2>&1; then
-        nc -z localhost "$p" >/dev/null 2>&1 || { echo "$p"; return 0; }
-      else
-        echo "$p"; return 0
-      fi
+      echo "$p"; return 0
     fi
     p=$((p+1))
   done
 }
 
+# overwrite even if 'noclobber' is set
 _write_runinfo() {
   local rundir="$1" pid="$2" socket="$3" port="$4"
   {
     print -r -- "PID=$pid"
     print -r -- "SOCKET=$socket"
     print -r -- "PORT=$port"
-  } >| "$rundir/run.env"   # note the >|
+  } >| "$rundir/run.env"
 }
 
 _read_runinfo() {
@@ -87,44 +79,66 @@ _read_runinfo() {
   [[ -f "$rundir/run.env" ]] && source "$rundir/run.env"
 }
 
+# A datadir is considered initialized if it contains the mysql system DB
+_datadir_initialized() {
+  local d="$1"
+  [[ -d "$d/mysql" ]]
+}
+
+# Consider empty if only harmless junk like .DS_Store / empty lost+found
+_datadir_only_ignorable_junk() {
+  local d="$1"
+  local -a items
+  items=($(ls -A "$d" 2>/dev/null))
+  (( ${#items} == 0 )) && return 0
+  items=(${items:#.DS_Store})
+  if [[ -d "$d/lost+found" && -z "$(ls -A "$d/lost+found" 2>/dev/null)" ]]; then
+    items=(${items:#lost+found})
+  fi
+  (( ${#items} == 0 ))
+}
+
 # --- 1) view available versions --------------------------------------
 
-mysql_versions() {
+mysql_list() {
   local d v
   [[ -d "$COMPONENTS/Mysql" ]] || { echo "No Mysql components at $COMPONENTS/Mysql"; return 0; }
+  echo "Available MySQL versions:"
   for d in "$COMPONENTS/Mysql"/*; do
     [[ -d "$d" ]] || continue
     v="${d:t}"
-    _mysql_bindir_for "$v" >/dev/null && echo "$v"
+    _mysql_bindir_for "$v" >/dev/null && echo "  $v"
   done | { command -v sort >/dev/null && sort -V || sort; }
 }
 
 # --- PATH management --------------------------------------------------
 
-mysql_clear_path() {
-  [[ -n "$_MYSQL_ACTIVE_BINDIR" ]] || return 0
-  path=(${^path:#$_MYSQL_ACTIVE_BINDIR})
-  _MYSQL_ACTIVE_BINDIR=""
-  rehash
+mysql_clear() {
+  component_switch_path "_MYSQL_ACTIVE_BINDIR" ""
+  echo "MySQL removed from PATH"
 }
 
 # --- 2) use_mysql <version> ------------------------------------------
 
 use_mysql() {
   local v="${1:-$DEFAULT_MYSQL}" bindir root
-  [[ -n "$v" ]] || { echo "Usage: use_mysql <version> (tip: mysql_versions)"; return 1; }
+  
+  if [[ "$v" == "off" ]]; then
+    mysql_clear
+    return
+  fi
+
+  [[ -n "$v" ]] || { echo "Usage: use_mysql <version> (tip: mysql_list)"; return 1; }
 
   if ! bindir="$(_mysql_bindir_for "$v")"; then
     echo "❌ MySQL $v not found or invalid (need Core/bin with mysql & mysqld)."
-    mysql_versions
+    mysql_list
     return 1
   fi
 
   root="$(_mysql_root_for "$v")"
 
-  mysql_clear_path
-  path+=("$bindir")
-  _MYSQL_ACTIVE_BINDIR="$bindir"
+  component_switch_path "_MYSQL_ACTIVE_BINDIR" "$bindir"
   rehash
 
   # Set per-version envs
@@ -135,7 +149,16 @@ use_mysql() {
   MYSQL_RUNDIR="$root/Run"
   MYSQL_SOCKET="$MYSQL_RUNDIR/mysqld.sock"
   MYSQL_PIDFILE="$MYSQL_RUNDIR/mysqld.pid"
-  # If a socket exists, make the mysql client auto-use it.
+
+  mkdir -p "$MYSQL_RUNDIR"
+
+  # Update stable client symlink if enabled
+  if [[ "$MYSQL_UPDATE_SYMLINK" == "1" ]]; then
+    mkdir -p "$HOME/.mysql"
+    ln -snf "$MYSQL_SOCKET" "$HOME/.mysql/current.sock"
+  fi
+
+  # Auto-point client to socket when it exists
   if [[ -S "$MYSQL_SOCKET" ]]; then
     export MYSQL_UNIX_PORT="$MYSQL_SOCKET"
   fi
@@ -145,11 +168,11 @@ use_mysql() {
 }
 
 # --- 3) mysql_start [--port N] [version] ------------------------------
-# If a mysqld is already running (yours), asks to stop it or start this one on a different port.
+# If a mysqld is already running (for your user), ask to stop it or start alongside on a free port.
 
 mysql_start() {
   local v= port= conf bindir root rundir datadir logdir socket pidfile init_needed=0 yn
-  # allow optional --port and version
+  # optional --port
   if [[ "$1" == --port ]]; then port="$2"; shift 2; fi
   v="${1:-${MYSQL_VERSION:-$DEFAULT_MYSQL}}"
 
@@ -164,64 +187,67 @@ mysql_start() {
 
   mkdir -p "$datadir" "$logdir" "$rundir"
 
-  # initialize if empty
-  if [[ -z "$(ls -A "$datadir" 2>/dev/null)" ]]; then
-    "$_MYSQL_ACTIVE_BINDIR/mysqld" --initialize-insecure --datadir="$datadir" || {
-      echo "Initialization failed"; return 1; }
-    init_needed=1
+  # initialize if not actually initialized
+  if ! _datadir_initialized "$datadir"; then
+    if _datadir_only_ignorable_junk "$datadir"; then
+      "$_MYSQL_ACTIVE_BINDIR/mysqld" --initialize-insecure --datadir="$datadir" || {
+        echo "Initialization failed"; return 1; }
+      init_needed=1
+    else
+      echo "❌ Datadir not initialized and not empty: $datadir"
+      echo "   Move it aside or choose a clean directory, then try again."
+      return 1
+    fi
   fi
 
   # detect running mysqld for current user
   local running="$(_mysql_running_pids_for_user)"
   if [[ -n "$running" ]]; then
-    echo "⚠️ Detected mysqld running for user $USER (PIDs: $running)"
-    vared -p "Stop existing mysqld and start $v here? [y/N] " -c yn
+    print -n -- "⚠️ Detected mysqld running for $USER (PIDs: $running). Stop and continue? [y/N] "
+    read -r yn
     if [[ "$yn" == [yY] ]]; then
       mysql_stop 2>/dev/null || true
     else
-      # run alongside on a different port/socket
       port="${port:-$(_find_free_port 3307)}"
       socket="$rundir/mysqld-$port.sock"
       pidfile="$rundir/mysqld-$port.pid"
-      echo "→ Will start alongside on port $port (socket: $socket)"
+      echo "→ Starting alongside on port $port (socket: $socket)"
     fi
   fi
 
-  # choose port if still unset
   port="${port:-3306}"
 
   # launch
   if [[ -f "$conf" ]]; then
-    nohup "$_MYSQL_ACTIVE_BINDIR/mysqld" \
+    "$_MYSQL_ACTIVE_BINDIR/mysqld" \
       --defaults-file="$conf" \
       --datadir="$datadir" \
       --socket="$socket" \
       --pid-file="$pidfile" \
       --port="$port" \
-      --log-error="$logdir/error.log" >/dev/null 2>&1 &
+      --log-error="$logdir/error.log" &
   else
-    nohup "$_MYSQL_ACTIVE_BINDIR/mysqld" \
+    "$_MYSQL_ACTIVE_BINDIR/mysqld" \
       --datadir="$datadir" \
       --socket="$socket" \
       --pid-file="$pidfile" \
       --port="$port" \
-      --log-error="$logdir/error.log" >/dev/null 2>&1 &
+      --log-error="$logdir/error.log" &
   fi
 
   # verify (wait up to ~5s for socket/pid)
   typeset -i tries=0
+  local pid=""
   while (( tries++ < 10 )); do
     [[ -S "$socket" ]] && break
     [[ -f "$pidfile" ]] && pid="$(<"$pidfile")"
     sleep 0.5
   done
-
-  # if PID still unknown, try to infer the last mysqld of this user
   [[ -z "$pid" ]] && pid="$(pgrep -u "$UID" -x mysqld | tail -n1)"
 
   if [[ ! -S "$socket" && -z "$pid" ]]; then
     echo "❌ mysqld failed to start. See: $logdir/error.log"
-    tail -n 30 "$logdir/error.log"
+    tail -n 30 "$logdir/error.log" 2>/dev/null || true
     return 1
   fi
 
@@ -236,14 +262,11 @@ mysql_start() {
 }
 
 # --- 4) mysql_cli [args] ----------------------------------------------
-# Q: shouldn't PATH auto use current version cli? → Yes. After use_mysql,
-#    `mysql` resolves to the active bindir. This wrapper just injects the socket
-#    if you didn’t specify one and a local socket exists.
-
+# After use_mysql, `mysql` resolves to the active version.
+# This wrapper injects --socket if you didn't specify host/protocol/socket.
 mysql_cli() {
   command -v mysql >/dev/null 2>&1 || { echo "mysql not on PATH. Run: use_mysql <version>"; return 1; }
 
-  # If user already specified a connection method (host/socket/protocol), don't touch.
   if ! _mysql_has_arg "--socket" "$@" && ! _mysql_has_arg "--host" "$@" && ! _mysql_has_arg "--protocol" "$@"; then
     if [[ -S "$MYSQL_SOCKET" ]]; then
       mysql --socket="$MYSQL_SOCKET" "$@"
@@ -272,7 +295,6 @@ mysql_stop() {
     kill "$pid" && { echo "🛑 Stopped MySQL $v via PID $pid"; return 0; }
   fi
 
-  # last resort for current user only
   local pids="$(_mysql_running_pids_for_user)"
   if [[ -n "$pids" ]]; then
     echo "Could not find socket/PID; stopping your mysqld processes: $pids"
@@ -310,7 +332,6 @@ mysql_current() {
   [[ -n "$rundir" ]] && echo "Run:    $rundir"
   [[ -n "$socket" ]] && echo "Socket: $socket"
 
-  # read saved run info (may define PID/PORT/SOCKET)
   _read_runinfo "$rundir"
   [[ -n "$SOCKET" ]] && socket="$SOCKET"
   [[ -n "$PID" ]]    && pid="$PID"
@@ -328,27 +349,100 @@ mysql_current() {
   [[ -n "$port" ]] && echo "Port: $port"
 }
 
-_mysql_bindir_for_debug() {
-  local v="$1"
-  local root="$COMPONENTS/Mysql/$v/Core/bin"
-  echo "Testing version: $v"
-  echo "Expect path: $root"
-  if [[ -x "$root/mysql" && -x "$root/mysqld" ]]; then
-    echo "✅ Found valid MySQL binaries"
-    print -r -- "$root"
-    return 0
-  else
-    echo "❌ Invalid or missing binaries"
-    return 1
-  fi
-}
-
 # --- Autoload default -------------------------------------------------
 
 if _mysql_bindir_for "$DEFAULT_MYSQL" >/dev/null; then
   use_mysql "$DEFAULT_MYSQL" >/dev/null
 fi
 
+# --- mysql help module ------------------------------------------------
+_devhelp_mysql() {
+cat <<'EOF'
+MySQL — Quick Reference
+=======================
+
+Portable layout (per version)
+-----------------------------
+~/Components/Mysql/<VER>/
+  ├─ Core/      # binaries (mysql, mysqld)
+  ├─ Data/      # datadir (InnoDB, binlogs, ib*)
+  ├─ Conf/      # my.cnf (optional)
+  ├─ Log/       # error.log, slow.log, query.log
+  └─ Run/       # mysqld.sock, mysqld.pid, run.env (auto-generated)
+
+Core helper commands
+--------------------
+mysql_versions                 # list available valid versions
+use_mysql <ver>                # switch PATH & envs to version (adds Core/bin)
+mysql_start [--port N] [ver]   # start server; asks to stop or auto-picks free port
+mysql_stop [ver]               # cleanly stop server (mysqladmin or pid)
+mysql_cli [args...]            # mysql client for current version; auto uses socket
+mysql_current                  # show active version, status, port, pid, paths
+
+Quick examples
+--------------
+use_mysql 8.0.43
+mysql_start
+mysql_cli -uroot -p
+mysql_start --port 3310 5.7.44   # run another version in parallel
+mysql_stop
+mysql_current
+
+Config & data locations
+-----------------------
+Default components root:   $HOME/Components/Mysql
+Default version:           (from $DEFAULT_MYSQL)
+Each version defines:
+  Data/:      actual MySQL datadir
+  Log/:       error / slow / query logs
+  Run/:       socket, pid, run.env (port, pid info)
+  Conf/my.cnf optional configuration file
+
+Maintenance & CLI basics
+------------------------
+mysql -u root -p
+mysql -h 127.0.0.1 -P 3306 -u root -p
+mysqldump -u root -p --single-transaction appdb > dump.sql
+mysqladmin -u root -p shutdown
+
+Common SQL
+----------
+SHOW DATABASES;
+CREATE DATABASE appdb;
+CREATE USER 'app'@'%' IDENTIFIED BY 'secret';
+GRANT ALL ON appdb.* TO 'app'@'%';
+FLUSH PRIVILEGES;
+SHOW VARIABLES LIKE 'log_error';
+SHOW GLOBAL STATUS LIKE 'Threads_connected';
+SHOW ENGINE INNODB STATUS\G
+
+Troubleshooting
+---------------
+• Can't connect: check socket vs TCP; use -h 127.0.0.1 to force TCP.
+• Data init fails: ensure Data/ is clean or initialized (helper will refuse if junk found).
+• Port busy: mysql_start can auto-pick a free port (starting 3307) or ask to stop existing.
+• To reset: mv Data Data.bad.$(date +%s); mkdir Data; mysql_start
+EOF
+}
+
+# Restart helper
+mysql_restart() {
+   local v="$1"
+   echo "Restarting MySQL ${v:-associated with current path}..."
+   mysql_stop "$v"
+   sleep 2
+   mysql_start "$v"
+}
+
+# Rule of 5 Aliases
+alias mysql_versions='mysql_list'
+alias mysql_use='use_mysql'
+alias mysql_off='mysql_clear'
+
+# If you use devhelp:
+(( $+functions[_devhelp_register] )) && _devhelp_register "mysql" _devhelp_mysql
+
 # ---------------------------------------------------------------------
 # 75) Python (portable)
+# (Your Python section can follow here, unchanged)
 # ---------------------------------------------------------------------

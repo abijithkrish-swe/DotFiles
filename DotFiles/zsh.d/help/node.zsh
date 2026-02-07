@@ -6,53 +6,33 @@ _devhelp_node() {
 Node — Command Reference
 ========================
 
-node_versions
+node_list
   List all installed Node versions under ~/Components/Node.
   Example:
-    node_versions
+    node_list
     # 18.20.5
     # 20.11.1
 
-node_use <version>
+use_node <version>|off
   Switch to a specific Node version.
   Removes old Component Node bins and appends new version’s bin to PATH.
   Example:
-    node_use 20.11.1
+    use_node 20.11.1
+    use_node off
 
-node_on [version]
-  Enable Node support.
-  • With argument → enables that version.
-  • Without argument → enables NODE_DEFAULT_VERSION if defined.
-  Example:
-    node_on
-    node_on 18.20.5
-
-node_off
+node_clear
   Disable Node support and remove all Component Node paths from PATH.
   Example:
-    node_off
+    node_clear
 
-node_current
-  Show the currently active Node version (or "none" if disabled).
-  Example:
-    node_current
-
-node_where
-  Show the full path of the Node binary in use.
-  Example:
-    node_where
-
-node_set_project [version]
-  Pin project Node version by writing .node-version in current directory.
-  • With argument → writes that version.
-  • Without argument → writes currently active Node version.
-  Example:
-    node_set_project 20.11.1
-    node_set_project
+aliases
+  node_versions -> node_list
+  node_use      -> use_node
+  node_off      -> node_clear
 
 Notes:
   • npm and npx come with Node — available automatically when Node is enabled.
-  • Use node_on or node_use before running npm/npx if Node is disabled.
+
 EOF
 }
 

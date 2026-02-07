@@ -22,6 +22,8 @@ alias gcm='git commit -m'
 alias gc='git checkout'
 alias gp='git push'
 alias gl='git log --oneline --graph --decorate --all'
+alias undo='git reset --soft HEAD~1'
+alias unpushed='git log @{u}..'
 
 # ---------------------------------------------------------------------
 # 61) Aliases Extras

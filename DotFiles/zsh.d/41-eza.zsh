@@ -1,26 +1,25 @@
 # 41) eza (modern ls) — optional
+# https://github.com/eza-community/eza
 # Install: brew install eza
+
 export ENABLE_EZA=true   # flip to false to disable
 
-if [[ "$ENABLE_EZA" == "true" ]] && command -v eza >/dev/null 2>&1; then
-  # --- eza aliases (without overriding ls) ---
-
-  # Standard alphabetical (closer to prod `ls`)
-  alias ll='eza -lh'            # long, human sizes
-  alias la='eza -lha'           # all files
-  alias lg='eza -lh --git'      # long, human + git status
-  alias lt='eza -T --level=2'   # tree view (compact, 2 levels)
-
-  # "Dirs first" variants (convenience, like GUI file browsers)
-  alias lld='eza -lh --group-directories-first'
-  alias lad='eza -lha --group-directories-first'
-  alias lgd='eza -lh --git --group-directories-first'
-  alias ltd='eza -T --level=2 --group-directories-first'
-
-  # Optional: icons (only if Nerd Fonts render correctly)
-  alias lsi='eza -lha --icons --group-directories-first'
+if [[ "$ENABLE_EZA" == "true" ]] && (( $+commands[eza] )); then
+  # Standard overrides
+  alias ls='eza --icons --git --group-directories-first'
+  alias ll='eza -l --icons --git --group-directories-first --header'
+  alias la='eza -la --icons --git --group-directories-first --header'
+  
+  # Tree views (Utilizing eza's tree feature)
+  alias lt='eza --tree --level=2 --icons'
+  alias ltt='eza --tree --level=3 --icons'
+  
+  # Sort by specific attributes
+  alias lS='ll --sort=size'      # Sort by size
+  alias lm='ll --sort=modified'  # Sort by time
+  
+else
+  # Fallbacks if eza is missing
+  alias ll='ls -lh'
+  alias la='ls -lha'
 fi
-
-# ---------------------------------------------------------------------
-# 42) bat (pretty cat, optional)
-# ---------------------------------------------------------------------

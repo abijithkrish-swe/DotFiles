@@ -1,34 +1,39 @@
-# 73) Ant helpers
+# 73) Ant
+# Layout: ~/Components/Ant/<ver>/bin/ant
 
-# List Ant versions (must have bin/ant)
-ant_versions() {
-  local d v
+ant_list() {
+  local d
   [[ -d "$COMPONENTS/Ant" ]] || return 0
+  echo "Available Ant versions:"
   for d in "$COMPONENTS/Ant"/*; do
-    [[ -d "$d/bin" && -x "$d/bin/ant" ]] || continue
-    v="${d:t}"
-    echo "$v"
+     [[ -x "$d/bin/ant" ]] && echo "  ${d:t}"
   done | sort -V
 }
 
-# Use a specific Ant version (append PATH + set ANT_HOME)
-# If no version passed, falls back to DEFAULT_ANT (if set).
 use_ant() {
-  local v="${1:-$DEFAULT_ANT}"
-  [[ -z "$v" ]] && { echo "Usage: use_ant <version>  (or set DEFAULT_ANT)"; return 1; }
-
-  local root="$COMPONENTS/Ant/$v"
-  if [ -d "$root/bin" ]; then
-    export ANT_HOME="$root"
-    export PATH="$PATH:$ANT_HOME/bin"   # append (safer)
-    echo "Using Ant $v from $ANT_HOME"
-    ant -version 2>/dev/null || echo "ant not found in $ANT_HOME/bin"
-  else
-    echo "Ant $v not found under $COMPONENTS/Ant"
-    return 1
+  local v="$1"
+  component_set_status "Ant" "$v"
+  
+  if [[ "$v" == "off" || -z "$v" ]]; then
+    ant_clear
+    return
   fi
+  local home="$COMPONENTS/Ant/$v"
+  [[ -d "$home" ]] || { echo "Ant $v not found"; return 1; }
+  
+  export ANT_HOME="$home"
+  component_switch_path "_ANT_ACTIVE_BIN" "$home/bin"
+  echo "Switched to Ant $v"; ant -version
 }
 
-# ---------------------------------------------------------------------
-# 74) Protobuf helpers
-# ---------------------------------------------------------------------
+ant_clear() {
+  component_switch_path "_ANT_ACTIVE_BIN" ""
+  unset ANT_HOME
+  echo "Ant removed"
+}
+
+alias ant_versions='ant_list'
+alias ant_use='use_ant'  # Legacy/Inverse alias
+alias ant_off='ant_clear'
+
+load_components_completion "use_ant" "Ant"
