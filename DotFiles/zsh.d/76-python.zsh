@@ -31,7 +31,7 @@ _python_home() {
 #   - Works great with `python -m venv` or direnv layouts.
 use_python() {
   local v="$1"
-  if [[ "$v" == "off" || -z "$v" ]]; then
+  if [[ "$v" == "off" || "$v" == "system" || -z "$v" ]]; then
      python_clear
      return
   fi

@@ -20,8 +20,8 @@ component_switch_path() {
   
   # 3. Add new path
   if [[ -n "$new_path" ]]; then
-    # Prepend
-    path=("$new_path" $path)
+    # Append to PATH (keep system paths first)
+    path=($path "$new_path")
     # 4. Update the state variable
     eval "$var_name='$new_path'"
   else
@@ -120,6 +120,8 @@ toolup() {
       JDK) use_jdk "$val" ;;
       REDIS) redis_use "$val" ;;
       ANT) [[ -n "$val" ]] && ant_use "$val" ;;
+      MAVEN) [[ -n "$val" ]] && use_maven "$val" ;;
+      GRADLE) [[ -n "$val" ]] && use_gradle "$val" ;;
       PROTOBUF) [[ -n "$val" ]] && protobuf_use "$val" ;;
       NODE) [[ -n "$val" ]] && node_use "$val" ;;
       GO) [[ -n "$val" ]] && go_use "$val" ;;

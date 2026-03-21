@@ -68,23 +68,132 @@ redis_start() {
   fi
   
   echo "Starting $bin..."
-  local conf="$COMPONENTS/Redis/$v/redis.conf"
-  if [[ -f "$conf" ]]; then
-    nohup "$bin" "$conf" >/tmp/redis_$v.log 2>&1 &
-  else
-    nohup "$bin" >/tmp/redis_$v.log 2>&1 &
+  
+  local root="$COMPONENTS/Redis/$v"
+  local confdir="$root/Conf"
+  local conf="$confdir/redis.conf"
+  
+  # Auto-initialize conf if it doesn't exist
+  if [[ ! -f "$conf" ]]; then
+    mkdir -p "$confdir"
+    # Create minimal, in-memory-only config
+    cat > "$conf" <<'EOF'
+# Redis Configuration
+# Generated for version-specific customization
+
+# Disable disk save (in-memory only)
+save ""
+appendonly no
+
+# Network & Persistence
+port 6379
+bind 127.0.0.1
+timeout 0
+
+# Memory Management
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+
+# Logging
+loglevel notice
+logfile ""
+
+# Database
+databases 16
+
+# To enable disk save, uncomment below:
+# save 900 1        # 900 sec (15 min): if at least 1 key changed
+# save 300 10       # 300 sec (5 min): if at least 10 keys changed
+# save 60 10000     # 60 sec: if at least 10000 keys changed
+# appendonly yes
+# appendfilename "appendonly.aof"
+EOF
+    echo "✅ Created default conf at: $conf (disk save disabled)"
   fi
-  sleep 1
-  if pgrep -x redis-server >/dev/null; then
-    echo "Redis started (logs: /tmp/redis_$v.log)"
+  
+  rm -f "/tmp/redis_$v.log"
+  
+  nohup "$bin" "$conf" > "/tmp/redis_$v.log" 2>&1 &
+  local pid=$!
+  disown %1 2>/dev/null  # Detach from job control to suppress notifications
+  
+  sleep 2
+  
+  # Check if process is still running
+  if kill -0 $pid 2>/dev/null; then
+    # Process is running, also verify connection
+    if command -v redis-cli >/dev/null 2>&1; then
+      if redis-cli ping >/dev/null 2>&1; then
+        echo "✅ Redis started successfully (logs: /tmp/redis_$v.log)"
+      else
+        echo "⚠️  Process started but connection failed. Logs:"
+        cat "/tmp/redis_$v.log"
+      fi
+    else
+      echo "✅ Redis started (PID: $pid). Install redis-cli to verify connection."
+    fi
   else
-    echo "Failed to start. Check /tmp/redis_$v.log"
+    echo "❌ Redis failed to start. Logs:"
+    cat "/tmp/redis_$v.log"
   fi
 }
 
 redis_stop() {
   echo "Stopping all User redis-server processes..."
   pkill -u "$USER" redis-server
+}
+
+# Initialize a conf file for a Redis version (no disk save by default)
+redis_init_conf() {
+  local v="$1"
+  [[ -z "$v" ]] && { echo "Usage: redis_init_conf <version>"; return 1; }
+  
+  local root="$COMPONENTS/Redis/$v"
+  [[ -d "$root" ]] || { echo "Redis $v not found at $root"; return 1; }
+  
+  local confdir="$root/Conf"
+  mkdir -p "$confdir"
+  
+  local conf="$confdir/redis.conf"
+  if [[ -f "$conf" ]]; then
+    echo "Config already exists at $conf"
+    return 0
+  fi
+  
+  # Create minimal, in-memory-only config
+  cat > "$conf" <<'EOF'
+# Redis Configuration
+# Generated for version-specific customization
+
+# Disable disk save (in-memory only)
+save ""
+appendonly no
+
+# Network & Persistence
+port 6379
+bind 127.0.0.1
+timeout 0
+
+# Memory Management
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+
+# Logging
+loglevel notice
+logfile ""
+
+# Database
+databases 16
+
+# To enable disk save, uncomment below:
+# save 900 1        # 900 sec (15 min): if at least 1 key changed
+# save 300 10       # 300 sec (5 min): if at least 10 keys changed
+# save 60 10000     # 60 sec: if at least 10000 keys changed
+# appendonly yes
+# appendfilename "appendonly.aof"
+EOF
+  
+  echo "✅ Created $conf (disk save disabled by default)"
 }
 
 # Aliases

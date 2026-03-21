@@ -23,6 +23,11 @@ if [ -d "/usr/local/mysql/bin" ]; then
   export PATH=$PATH:/usr/local/mysql/bin
 fi
 
+# Add Claude to PATH if it exists
+if [ -f "$HOME/.local/bin/claude" ]; then
+  export PATH="$PATH:$HOME/.local/bin"
+fi
+
 # --- XDG Base Directory ------------------------------------------------------
 export XDG_CONFIG_HOME="$HOME/.config"
 export XDG_DATA_HOME="$HOME/.local/share"
@@ -35,29 +40,22 @@ mkdir -p "$ZSH_CACHE_DIR"
 
 # --- Zsh history (state) -----------------------------------------------------
 # Larger history & single location
-export HISTFILE="$ZSH_CACHE_DIR/zsh_history"
+# We determine the filename here, but options are set later (in 50-history.zsh)
+# to avoid conflicts with Oh-My-Zs.
+
+local _hist_name="zsh_history"
+
+if [[ "$TERM_PROGRAM" == "vscode" ]]; then
+  _hist_name="zsh_history_vscode"
+elif [[ "$TERMINAL_EMULATOR" == "JetBrains"* || -n "$INTELLIJ_IDEA_CONSOLE" ]]; then
+  _hist_name="zsh_history_jetbrains"
+elif [[ -n "$ECLIPSE_CONSOLE" || -n "$ECLIPSE_HOME" ]]; then
+  _hist_name="zsh_history_eclipse"
+fi
+
+export HISTFILE="$ZSH_CACHE_DIR/$_hist_name"
 export HISTSIZE=200000
 export SAVEHIST=200000
-
-# Optional: safer history behavior (append, ignore dups/spaces)
-setopt APPEND_HISTORY
-setopt HIST_IGNORE_ALL_DUPS
-setopt HIST_REDUCE_BLANKS
-setopt HIST_IGNORE_SPACE
-
-# --- VS Code-specific history behavior ---
-if [[ "$TERM_PROGRAM" == "vscode" ]]; then
-  # 1) Separate persistent history file just for VS Code:
-  export HISTFILE="$ZSH_CACHE_DIR/zsh_history_vscode"
-
-  # If you normally use shared history, turn it off only in VS Code:
-  unsetopt share_history 2>/dev/null
-
-  # Recommended history opts (tweak as you like):
-  setopt inc_append_history       # write as you go, but only to VS Code's file
-  setopt hist_ignore_all_dups
-  setopt hist_ignore_space
-fi
 
 # --- Completions dump (cache) -----------------------------------------------
 # Move .zcompdump out of $HOME and let OMZ use it.

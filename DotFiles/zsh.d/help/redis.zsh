@@ -12,8 +12,9 @@ redis_clear              # remove Redis from PATH
 
 Service Control
 ---------------------------------------
-redis_start [ver]        # start redis-server (uses redis.conf if present)
+redis_start [ver]        # start redis-server (in-memory-only if no conf)
 redis_stop               # stop all redis-server processes owned by you
+redis_init_conf <ver>    # initialize Conf/redis.conf (disk save disabled)
 
 Aliases
 -------
@@ -26,8 +27,20 @@ rcli           -> redis-cli
 Layout
 ---------------------------------------
 ~/Components/Redis/<VER>/
-  ├─ bin/         # redis-server, redis-cli
-  ├─ redis.conf   # optional config
+  ├─ bin/              # redis-server, redis-cli
+  └─ Conf/
+      └─ redis.conf    # version-specific config (disk save disabled by default)
+
+Configuration
+---------------------------------------
+1. First install: redis_init_conf <ver>
+   Creates Conf/redis.conf with disk save DISABLED
+
+2. To enable disk save:
+   Edit Conf/redis.conf and uncomment the 'save' directives
+   
+3. Run: redis_start <ver>
+   Will use Conf/redis.conf if present, else in-memory-only mode
 EOF
 }
 

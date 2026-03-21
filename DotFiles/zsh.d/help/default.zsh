@@ -17,6 +17,7 @@ catn / batp            # bat wrappers (numbers / pager) - see 'devhelp bat'
 # Dev Components (Standard API: list, use, start, stop, clear)
 -------------------------------------------------------------
 use_ant <ver>          # Ant (sets ANT_HOME)
+use_maven <ver>        # Maven (sets M2_HOME, MAVEN_HOME)
 use_protoc <ver>       # Protobuf (sets PATH)
 use_python <ver>       # Python (sets PATH)
 use_go <ver>           # Go (sets GOROOT, PATH)

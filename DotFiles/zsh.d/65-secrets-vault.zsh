@@ -18,13 +18,16 @@ _vault_encrypt_str() {
   local pass="$2"
   # -md sha256 ensures newer openssl compatibility
   # -a outputs base64 directly
+  # -A prevents line wrapping in base64 output (keeps on single line)
   # -salt -pbkdf2 adds security against rainbow tables
-  echo -n "$plaintext" | openssl enc -aes-256-cbc -a -salt -pbkdf2 -k "$pass" 2>/dev/null
+  echo -n "$plaintext" | openssl enc -aes-256-cbc -a -A -salt -pbkdf2 -k "$pass" 2>/dev/null
 }
 
 _vault_decrypt_str() {
   local cipher="$1"
   local pass="$2"
+  # Ensure cipher is on a single line (handle legacy multi-line values)
+  cipher=$(echo "$cipher" | tr -d '\n')
   echo "$cipher" | openssl enc -aes-256-cbc -a -d -salt -pbkdf2 -k "$pass" 2>/dev/null
 }
 

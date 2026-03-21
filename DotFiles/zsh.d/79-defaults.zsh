@@ -19,16 +19,21 @@ export DOCKER_CONFIG="$HOME/.config/docker"   # -> ~/.config/docker
 case $- in
   *i*)
     # --- JDK ---
-    if typeset -f jdk >/dev/null 2>&1 && [[ -n "$DEFAULT_JDK" ]]; then
-      jdk "$DEFAULT_JDK" >/dev/null 2>&1 || echo "Note: JDK $DEFAULT_JDK not found"
+    if typeset -f use_jdk >/dev/null 2>&1 && [[ -n "$DEFAULT_JDK" ]]; then
+      use_jdk "$DEFAULT_JDK" >/dev/null 2>&1 || echo "Note: JDK $DEFAULT_JDK not found"
     fi
 
-    # --- MySQL client (adds to PATH; does NOT start server) ---
-    if typeset -f mysql_set_default >/dev/null 2>&1 && [[ -n "$DEFAULT_MYSQL_CLIENT" ]]; then
-      mysql_set_default "$DEFAULT_MYSQL_CLIENT" >/dev/null 2>&1 || echo "Note: MySQL $DEFAULT_MYSQL_CLIENT not found"
+    # --- MySQL client ---
+    if typeset -f use_mysql >/dev/null 2>&1 && [[ -n "$DEFAULT_MYSQL_CLIENT" ]]; then
+      use_mysql "$DEFAULT_MYSQL_CLIENT" >/dev/null 2>&1 || echo "Note: MySQL $DEFAULT_MYSQL_CLIENT not found"
     fi
 
-    # --- Redis client (adds to PATH; does NOT start server) ---
+    # --- Python ---
+    if typeset -f use_python >/dev/null 2>&1 && [[ -n "$DEFAULT_PYTHON" ]]; then
+      use_python "$DEFAULT_PYTHON" >/dev/null 2>&1 || echo "Note: Python $DEFAULT_PYTHON not found"
+    fi
+
+    # --- Redis ---
     if typeset -f use_redis >/dev/null 2>&1 && [[ -n "$DEFAULT_REDIS" ]]; then
       use_redis "$DEFAULT_REDIS" >/dev/null 2>&1 || echo "Note: Redis $DEFAULT_REDIS not found"
     fi
