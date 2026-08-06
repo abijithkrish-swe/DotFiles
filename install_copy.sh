@@ -1,22 +1,22 @@
 #!/bin/sh
 # -----------------------------------------------------------------------------
-# install_copy.sh — bootstrap dotfiles by COPYING from repo into $HOME
+# install_copy.sh — manage dotfiles between repo and $HOME
 #
-# Features:
-#   • DRY-RUN by default (preview actions)
-#   • --apply to actually copy
-#   • Backups saved under ./Backup/<timestamp>/home/...
-#   • --restore [timestamp] to restore from backups
-#   • --list-backups to list available backups
+# Verbs:
+#   deploy [--force]         repo → $HOME, fresh install (mirror ~/.zsh.d).
+#                            First reviews any local drift so you can fold edits
+#                            back to repo before they're overwritten.
+#   sync   [--force]         Bidirectional reconcile (per-file direction choice).
+#                            No side is authoritative; pick repo→home or home→repo
+#                            for each change.
+#   backup list              List backup timestamps under Backup/.
+#   backup show [ts]         Summarize what's in a backup.
+#   backup create            Manual full snapshot of $HOME paths the repo manages
+#                            (excluding ~/.config/secrets).
+#   backup restore [ts]      Restore $HOME from a backup.
+#   help                     Show usage.
 #
-# Layout expected:
-#   repo/
-#     DotFiles/
-#       zshrc
-#       vimrc
-#       zsh.d/
-#       config/
-#     install_copy.sh
+# ~/.config/secrets/ is always excluded from deploy, sync, and backup.
 # -----------------------------------------------------------------------------
 
 set -e
@@ -24,256 +24,615 @@ set -e
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 BACKUP_ROOT="$REPO_DIR/Backup"
 TS="$(date +%Y%m%d-%H%M%S)"
-DRYRUN=1         # default: dry-run ON
-APPLY=0
-RESTORE=0
-RESTORE_TS=""
-FORCE=0
-SHOW_DIFF=0
+TAB="$(printf '\t')"
+SECRETS_REL=".config/secrets"
 
 say() { printf '%s\n' "$*"; }
-die() { say "❌ $*"; exit 1; }
+die() { printf '%s\n' "❌ $*" >&2; exit 1; }
 
 usage() {
-  cat <<EOF
-Usage: $0 [--apply] [--force] [--restore [timestamp]] [--list-backups]
+  cat <<'EOF'
+Usage: install_copy.sh <verb> [options]
 
-  (default)        Dry run: preview actions, no changes made
-  --apply          Perform the copy (turn off dry-run)
-  --force          Overwrite existing files (backed up to ./Backup/<ts>)
-  --restore [ts]   Restore from latest (no ts) or specific timestamp dir
-  --list-backups   Show available backup timestamps
-  --config-diff    Show diffs between repo config and installed ~/.config
+Verbs:
+  deploy [--force]         Fresh install repo → $HOME.
+                           Step 1: review local drift (home edits vs repo).
+                                   Per file: fold to repo or discard.
+                           Step 2: full backup of touched home paths.
+                           Step 3: apply.
+                              ~/.zshrc, ~/.vimrc → copy
+                              ~/.zsh.d/         → mirror (--delete)
+                              ~/.config/<x>/    → merge (untracked files kept)
+                              ~/.config/secrets/→ skipped
+                           --force skips step 1 (drift discarded).
+
+  sync   [--force]         Bidirectional reconcile, no fresh install.
+                           Per change, pick a direction:
+                              [>] repo → home    [<] home → repo
+                              [x] delete (only when one side is missing)
+                              [s] skip           [q] quit
+                           --force is not very meaningful here; it auto-skips
+                           every change instead of prompting.
+
+  backup list              List backup timestamps.
+  backup show [ts]         Summarize what's in a backup (latest if no ts).
+  backup create            Full snapshot of $HOME paths the repo manages
+                           (excluding ~/.config/secrets) → Backup/<ts>/manual/.
+  backup restore [ts]      Restore $HOME from Backup/<ts>/home (or manual/).
+
+  help                     Show this message.
 
 Examples:
-  $0                    # preview what would happen
-  $0 --apply            # copy, back up any overwritten items
-  $0 --apply --force    # overwrite existing files/dirs (with backups)
-  $0 --list-backups
-  $0 --restore          # restore from latest backup
-  $0 --restore 20250920-101530
+  install_copy.sh deploy
+  install_copy.sh deploy --force
+  install_copy.sh sync
+  install_copy.sh backup list
+  install_copy.sh backup show
+  install_copy.sh backup create
 EOF
-  exit 1
 }
 
-# --- parse args ---
-while [ $# -gt 0 ]; do
-  case "$1" in
-    --apply)        APPLY=1; DRYRUN=0 ;;
-    --force)        FORCE=1 ;;
-    --restore)      RESTORE=1; RESTORE_TS="${2:-}"; shift || true ;;
-    --config-diff)  SHOW_DIFF=1 ;;
-    --list-backups) ls -1 "$BACKUP_ROOT" 2>/dev/null || echo "(no backups)"; exit 0 ;;
-    -h|--help)      usage ;;
-    *)              usage ;;
+# -----------------------------------------------------------------------------
+# Generic helpers
+# -----------------------------------------------------------------------------
+
+copy_path() {
+  src="$1"; dest="$2"
+  mkdir -p "$(dirname "$dest")"
+  if [ -d "$src" ]; then
+    mkdir -p "$dest"
+    if command -v rsync >/dev/null 2>&1; then rsync -a "$src"/ "$dest"/
+    else cp -R "$src"/. "$dest"/
+    fi
+  else
+    cp -f "$src" "$dest"
+  fi
+}
+
+mirror_dir() {
+  src="$1"; dest="$2"
+  mkdir -p "$dest"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --delete "$src"/ "$dest"/
+  else
+    rm -rf "$dest"
+    cp -R "$src" "$dest"
+  fi
+}
+
+backup_path_into() {
+  src="$1"; bkp="$2"
+  [ -e "$src" ] || return 0
+  mkdir -p "$(dirname "$bkp")"
+  if [ -d "$src" ]; then
+    if command -v rsync >/dev/null 2>&1; then rsync -a "$src"/ "$bkp"/
+    else cp -R "$src" "$bkp"
+    fi
+  else
+    cp -f "$src" "$bkp"
+  fi
+}
+
+# Write a SKIPPED.md note at the backup root explaining what merge-mode dirs
+# left untouched (Docker contexts, Colima VM images, etc. — runtime state that
+# apps regenerate, deliberately not backed up because deploy never touches it).
+write_skip_summary() {
+  bkroot_kind="$1"   # "home" or "manual" — used only for the heading
+  ts_root="$BACKUP_ROOT/$TS"
+  outfile="$ts_root/SKIPPED.md"
+  body="$(mktemp "${TMPDIR:-/tmp}/skip.XXXXXX")"
+
+  deploy_pairs | while IFS="$TAB" read -r src dest mode; do
+    [ "$mode" = "merge" ] || continue
+    [ -d "$dest" ] || continue
+    rel="${dest#"$HOME"/}"
+    home_files="$(find "$dest" -type f 2>/dev/null | wc -l | tr -d ' ')"
+    home_size="$(du -sh "$dest" 2>/dev/null | cut -f1)"
+    repo_files="$(find "$src" -type f 2>/dev/null | wc -l | tr -d ' ')"
+    printf -- '- ~/%s/  — home: %s files (%s)  • repo-tracked: %s files\n' \
+      "$rel" "$home_files" "$home_size" "$repo_files" >> "$body"
+  done
+
+  if [ -s "$body" ]; then
+    {
+      printf '# Skip notes — backup %s (%s)\n\n' "$TS" "$bkroot_kind"
+      printf 'These paths use **merge-mode** deploy. Only files present in the repo\n'
+      printf 'source were backed up. Anything else in the home directory (runtime state,\n'
+      printf 'VM images, caches, plugin binaries, secrets) was deliberately skipped to\n'
+      printf 'keep backups small and fast — deploy never touches those files anyway.\n\n'
+      cat "$body"
+      printf '\nRestore from this backup will only restore the repo-tracked files;\n'
+      printf 'the apps that own these dirs will regenerate any missing runtime state.\n'
+    } > "$outfile"
+    say "📝 skip summary: $outfile"
+  fi
+  rm -f "$body"
+}
+
+# Back up a deploy-pair's home side, scoped to what deploy would actually touch.
+#   file/mirror → back up the whole home path
+#   merge       → back up only files that ALSO exist in the repo source
+#                 (untracked files like Docker buildx cache, plugin binaries,
+#                 token seeds are preserved by deploy and don't need backup)
+backup_pair_into() {
+  bkroot="$1"; src_repo="$2"; dest_home="$3"; mode="$4"
+  [ -e "$dest_home" ] || return 0
+  rel="${dest_home#"$HOME"/}"
+  case "$mode" in
+    file|mirror)
+      backup_path_into "$dest_home" "$bkroot/$rel"
+      say "  📦 $dest_home"
+      ;;
+    merge)
+      [ -d "$src_repo" ] || return 0
+      ( cd "$src_repo" && find . -type f ) | sed 's|^\./||' | while IFS= read -r r; do
+        h="$dest_home/$r"
+        [ -e "$h" ] || continue
+        backup_path_into "$h" "$bkroot/$rel/$r"
+      done
+      [ -d "$bkroot/$rel" ] && say "  📦 $dest_home (tracked files only)"
+      ;;
   esac
-  shift
-done
+}
 
-[ -d "$REPO_DIR/DotFiles" ] || die "Missing DotFiles/ in repo root"
+diff_two_files() {
+  left="$1"; right="$2"
+  if command -v icdiff >/dev/null 2>&1; then
+    icdiff -L "$left (current)" -L "$right (incoming)" "$left" "$right" || true
+  else
+    width="$(tput cols 2>/dev/null || echo 160)"
+    say "─── LEFT: $left  │  RIGHT: $right ───"
+    diff -y -W "$width" "$left" "$right" || true
+  fi
+}
 
-# --- diff config helper ---
-diff_config() {
-  say "🔍 Diffing ~/.config against repo..."
+# -----------------------------------------------------------------------------
+# Deploy plan: list of (repo_src, home_dest, mode)
+# mode ∈ { file, mirror, merge }
+# -----------------------------------------------------------------------------
+
+deploy_pairs() {
+  printf "%s${TAB}%s${TAB}file\n"   "$REPO_DIR/DotFiles/zshrc" "$HOME/.zshrc"
+  printf "%s${TAB}%s${TAB}file\n"   "$REPO_DIR/DotFiles/vimrc" "$HOME/.vimrc"
+  printf "%s${TAB}%s${TAB}mirror\n" "$REPO_DIR/DotFiles/zsh.d" "$HOME/.zsh.d"
   if [ -d "$REPO_DIR/DotFiles/config" ]; then
     find "$REPO_DIR/DotFiles/config" -mindepth 1 -maxdepth 1 -print | while read -r item; do
       name="$(basename "$item")"
-      installed="$HOME/.config/$name"
-      if [ -e "$installed" ]; then
-        say "  Checking $name..."
-        diff -r --color=auto "$item" "$installed" || true
-      else
-        say "  Checking $name... (Not installed)"
-      fi
+      [ "$name" = "secrets" ] && continue
+      printf "%s${TAB}%s${TAB}merge\n" "$item" "$HOME/.config/$name"
     done
   fi
-  say "🏁 Diff complete."
 }
 
-if [ "$SHOW_DIFF" -eq 1 ]; then
-  diff_config
-  exit 0
-fi
+# -----------------------------------------------------------------------------
+# Change classification
+# -----------------------------------------------------------------------------
 
-# --- helpers ---
-backup_dest_for() {
-  # map $HOME path to repo backup path
-  # e.g., ~/.zshrc -> $BACKUP_ROOT/<TS>/home/.zshrc
-  rel="${1#"$HOME"/}"
-  printf "%s/%s/home/%s" "$BACKUP_ROOT" "$TS" "$rel"
+# classify_into <out_file> <home_path> <repo_path> <pair_mode>
+# Emits per-file records: <home_path>\t<repo_path>\t<status>\t<pair_mode>
+# status ∈ { DIFFERS, ONLY_HOME, ONLY_REPO }
+classify_into() {
+  out="$1"; hp="$2"; rp="$3"; mode="$4"
+
+  if [ -d "$rp" ] || [ -d "$hp" ]; then
+    classify_dir_into "$out" "$hp" "$rp" "$mode"
+    return
+  fi
+
+  if [ -e "$rp" ] && [ ! -e "$hp" ]; then
+    printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "ONLY_REPO" "$TAB" "$mode" >> "$out"
+  elif [ ! -e "$rp" ] && [ -e "$hp" ]; then
+    printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "ONLY_HOME" "$TAB" "$mode" >> "$out"
+  elif [ -e "$rp" ] && ! cmp -s "$rp" "$hp"; then
+    printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "DIFFERS" "$TAB" "$mode" >> "$out"
+  fi
 }
 
-mkdirp() {
-  [ "$DRYRUN" -eq 1 ] && return 0
-  mkdir -p "$1"
+# Walk a dir-pair using a recursive enumeration so we can see per-file changes,
+# including files only in one side (which `diff -qr` would emit as "Only in …"
+# at directory granularity without recursing into added subdirs).
+classify_dir_into() {
+  out="$1"; hd="$2"; rd="$3"; mode="$4"
+
+  # Build a unique sorted list of relative file paths under either side.
+  # For merge pairs (e.g. ~/.config/docker), home-only files are preserved by
+  # deploy, so we don't need to enumerate the home side (which can be huge:
+  # buildx cache, contexts, plugin binaries, etc.). Only mirror pairs need
+  # the home walk so ONLY_HOME files (which mirror would --delete) are caught.
+  rels="$(mktemp "${TMPDIR:-/tmp}/cls-rels.XXXXXX")"
+  if [ -d "$rd" ]; then
+    ( cd "$rd" && find . -type f ) | sed 's|^\./||' >> "$rels" || true
+  fi
+  if [ "$mode" = "mirror" ] && [ -d "$hd" ]; then
+    ( cd "$hd" && find . -type f ) | sed 's|^\./||' >> "$rels" || true
+  fi
+
+  sort -u "$rels" | while IFS= read -r rel; do
+    [ -n "$rel" ] || continue
+    h="$hd/$rel"; r="$rd/$rel"
+    if [ -e "$r" ] && [ ! -e "$h" ]; then
+      printf '%s%s%s%s%s%s%s\n' "$h" "$TAB" "$r" "$TAB" "ONLY_REPO" "$TAB" "$mode" >> "$out"
+    elif [ ! -e "$r" ] && [ -e "$h" ]; then
+      printf '%s%s%s%s%s%s%s\n' "$h" "$TAB" "$r" "$TAB" "ONLY_HOME" "$TAB" "$mode" >> "$out"
+    elif [ -e "$r" ] && ! cmp -s "$r" "$h"; then
+      printf '%s%s%s%s%s%s%s\n' "$h" "$TAB" "$r" "$TAB" "DIFFERS" "$TAB" "$mode" >> "$out"
+    fi
+  done
+  rm -f "$rels"
 }
 
-do_copy_file() {
-  src="$1"; dest="$2"
-  if [ -e "$dest" ]; then
-    if [ "$FORCE" -eq 1 ]; then
-      bkp="$(backup_dest_for "$dest")"
-      say "🔁 Backup file $dest  →  $bkp"
-      if [ "$DRYRUN" -eq 0 ]; then
-        mkdir -p "$(dirname "$bkp")"
-        cp -f "$dest" "$bkp"
+detect_changes() {
+  out="$1"
+  : > "$out"
+  deploy_pairs | while IFS="$TAB" read -r src dest mode; do
+    classify_into "$out" "$dest" "$src" "$mode"
+  done
+}
+
+show_change_diff() {
+  hp="$1"; rp="$2"; status="$3"
+  case "$status" in
+    DIFFERS)   diff_two_files "$hp" "$rp" ;;
+    ONLY_REPO) say "(only in repo — does not exist in home yet)" ;;
+    ONLY_HOME) say "(only in home — not present in repo)" ;;
+  esac
+}
+
+# -----------------------------------------------------------------------------
+# Deploy
+# -----------------------------------------------------------------------------
+
+cmd_deploy() {
+  force=0
+  for a in "$@"; do
+    case "$a" in
+      --force) force=1 ;;
+      *) die "Unknown option for deploy: $a" ;;
+    esac
+  done
+  [ -d "$REPO_DIR/DotFiles" ] || die "Missing DotFiles/ in repo root"
+
+  changes="$(mktemp "${TMPDIR:-/tmp}/deploy-changes.XXXXXX")"
+  drift_sel="$(mktemp "${TMPDIR:-/tmp}/deploy-drift.XXXXXX")"
+  trap 'rm -f "$changes" "$drift_sel"' EXIT
+
+  detect_changes "$changes"
+
+  # Drift = changes deploy would clobber/lose:
+  #   DIFFERS (any pair): home edit will be overwritten
+  #   ONLY_HOME on mirror pair (.zsh.d): file will be deleted by --delete
+  # ONLY_HOME on merge pair (.config/<x>) is preserved by deploy → not drift.
+  drift="$(mktemp "${TMPDIR:-/tmp}/deploy-drift-pending.XXXXXX")"
+  while IFS="$TAB" read -r hp rp status mode; do
+    case "$status" in
+      DIFFERS)
+        printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift"
+        ;;
+      ONLY_HOME)
+        [ "$mode" = "mirror" ] && \
+          printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift"
+        ;;
+    esac
+  done < "$changes"
+
+  say "📋 Deploy plan: repo → \$HOME (~/.config/secrets is skipped)"
+  if [ -s "$drift" ]; then
+    n_drift="$(wc -l < "$drift" | tr -d ' ')"
+    say "⚠️  $n_drift local change(s) detected in \$HOME that deploy would overwrite/delete."
+  else
+    say "✅ no local drift detected."
+  fi
+  say ""
+
+  # Drift review (skip if --force).
+  if [ -s "$drift" ] && [ "$force" -eq 0 ]; then
+    say "🔎 Drift review — fold local edits back to repo before deploy clobbers them."
+    say "   Keys: [y] fold to repo  [n] discard (deploy will overwrite)  [a] fold-all  [q] quit deploy"
+    apply_all=0
+    quit=0
+    while IFS="$TAB" read -r hp rp status mode; do
+      say ""
+      say "----- $hp [$status] -----"
+      show_change_diff "$hp" "$rp" "$status"
+
+      if [ "$apply_all" -eq 1 ]; then
+        printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift_sel"
+        say "✅ folded (all)"
+        continue
       fi
-    else
-      say "⏭️  Skip (exists) $dest"
-      return 0
+
+      printf "Fold to repo? [y/n/a/q]: " > /dev/tty
+      IFS= read -r ans < /dev/tty
+      case "$ans" in
+        y|Y) printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift_sel"
+             say "✅ folded" ;;
+        a|A) printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift_sel"
+             apply_all=1
+             say "✅ folded (apply-all)" ;;
+        q|Q) quit=1; break ;;
+        *)   say "⏭️  discarded" ;;
+      esac
+    done < "$drift"
+    rm -f "$drift"
+
+    if [ "$quit" -eq 1 ]; then
+      say "⏹️  deploy aborted. Nothing was written."
+      exit 0
     fi
+
+    if [ -s "$drift_sel" ]; then
+      bkroot_repo="$BACKUP_ROOT/$TS/repo"
+      say ""
+      say "⬅️  Folding selected drift to repo (with backup of repo target):"
+      while IFS="$TAB" read -r hp rp status mode; do
+        repo_rel="${rp#"$REPO_DIR"/}"
+        backup_path_into "$rp" "$bkroot_repo/$repo_rel"
+        copy_path "$hp" "$rp"
+        say "  ⬅️  $hp → $rp"
+      done < "$drift_sel"
+    fi
+  else
+    rm -f "$drift"
   fi
-  say "➡️  Copy file $src  →  $dest"
-  if [ "$DRYRUN" -eq 0 ]; then
-    mkdir -p "$(dirname "$dest")"
-    cp -f "$src" "$dest"
-  end_if=true
+
+  # Confirm before destructive deploy step (unless --force).
+  say ""
+  if [ "$force" -eq 0 ]; then
+    printf "Proceed with full deploy? [y/N]: " > /dev/tty
+    IFS= read -r ans < /dev/tty
+    case "$ans" in y|Y) ;; *) say "⏹️  deploy cancelled."; exit 0 ;; esac
   fi
+
+  # Full backup of home paths the repo manages (skip secrets).
+  say ""
+  say "📦 Full backup of home paths (excluding ~/.config/secrets)…"
+  bkroot_home="$BACKUP_ROOT/$TS/home"
+  deploy_pairs | while IFS="$TAB" read -r src dest mode; do
+    backup_pair_into "$bkroot_home" "$src" "$dest" "$mode"
+  done
+  write_skip_summary "home"
+
+  # Apply.
+  say ""
+  say "➡️  Applying deploy…"
+  deploy_pairs | while IFS="$TAB" read -r src dest mode; do
+    case "$mode" in
+      mirror) mirror_dir "$src" "$dest" ;;
+      *)      copy_path  "$src" "$dest" ;;
+    esac
+    say "  ➡️  $dest  ($mode)"
+  done
+  mkdir -p "$HOME/.zshcache/sessions" "$HOME/.zshcache/zoxide" "$HOME/.zshcache/vim"
+
+  say ""
+  say "✅ deploy complete. Backup root: $BACKUP_ROOT/$TS"
+  say "   Open a new shell or run: exec zsh"
 }
 
-do_copy_dir() {
-  src="$1"; dest="$2"
-  if [ -e "$dest" ]; then
-    if [ "$FORCE" -eq 1 ]; then
-      say "🔍 Scanning for conflicts in $dest..."
-      # Strategy B: Only backup specific files we are about to overwrite
-      find "$src" -type f | while read -r sfile; do
-        rel="${sfile#"$src"/}"
-        tfile="$dest/$rel"
-        if [ -e "$tfile" ]; then
-           bkp="$(backup_dest_for "$tfile")"
-           say "  🔁 Backup file $tfile"
-           if [ "$DRYRUN" -eq 0 ]; then
-             mkdir -p "$(dirname "$bkp")"
-             cp -f "$tfile" "$bkp"
-           fi
-        fi
-      done
-    else
-      say "⏭️  Skip dir (exists) $dest"
-      return 0
-    fi
-  fi
-  say "➡️  Copy dir  $src  →  $dest"
-  if [ "$DRYRUN" -eq 0 ]; then
-    mkdir -p "$(dirname "$dest")"
-    if command -v rsync >/dev/null 2>&1; then
-      rsync -a "$src"/ "$dest"/
-    else
-      mkdir -p "$dest"
-      cp -R "$src"/. "$dest"/
-    fi
-  fi
-}
+# -----------------------------------------------------------------------------
+# Sync (bidirectional)
+# -----------------------------------------------------------------------------
 
-do_sync_dir() {
-  src="$1"; dest="$2"
-  if [ -e "$dest" ]; then
-    if [ "$FORCE" -eq 1 ]; then
-      bkp="$(backup_dest_for "$dest")"
-      say "🔁 Backup SYNC target $dest  →  $bkp"
-      if [ "$DRYRUN" -eq 0 ]; then
-        mkdir -p "$(dirname "$bkp")"
-        if command -v rsync >/dev/null 2>&1; then rsync -a "$dest"/ "$bkp"/; else cp -R "$dest" "$bkp"; fi
-      fi
-    else
-      # If not forcing, we can't safely "delete" files from dest, so warn?
-      # Or fall back to copy?
-      say "⚠️  Existing $dest found. Using --force required for Clean Sync (delete stale files)."
-      say "    Falling back to standard Merge-Copy."
-      do_copy_dir "$src" "$dest"
-      return
-    fi
-  fi
-  say "🔄 SYNC dir  $src  →  $dest (Mirror content)"
-  if [ "$DRYRUN" -eq 0 ]; then
-    mkdir -p "$dest"
-    if command -v rsync >/dev/null 2>&1; then
-      rsync -a --delete "$src"/ "$dest"/
-    else
-      rm -rf "$dest"
-      cp -R "$src" "$dest"
-    fi
-  fi
-}
-
-# --- restore support ---
-restore_from() {
-  ts="$1"
-  src_root="$BACKUP_ROOT/$ts/home"
-  [ -d "$src_root" ] || die "Backup timestamp not found: $ts"
-
-  say "🧩 Restoring from backup: $ts"
-  find "$src_root" -type d -print | while read -r d; do
-    rel="${d#"$src_root"/}"
-    [ -z "$rel" ] && continue
-    dest="$HOME/$rel"
-    say "📂 ensure dir $dest"
-    [ "$DRYRUN" -eq 0 ] && mkdir -p "$dest"
+cmd_sync() {
+  force=0
+  for a in "$@"; do
+    case "$a" in
+      --force) force=1 ;;
+      *) die "Unknown option for sync: $a" ;;
+    esac
   done
 
+  changes="$(mktemp "${TMPDIR:-/tmp}/sync-changes.XXXXXX")"
+  actions="$(mktemp "${TMPDIR:-/tmp}/sync-actions.XXXXXX")"
+  trap 'rm -f "$changes" "$actions"' EXIT
+
+  detect_changes "$changes"
+
+  if [ ! -s "$changes" ]; then
+    say "✅ repo and \$HOME are already in sync (excluding ~/.config/secrets)."
+    exit 0
+  fi
+
+  n="$(wc -l < "$changes" | tr -d ' ')"
+  say "📋 Sync review: $n change(s) between repo and \$HOME"
+  say "   Keys per item:"
+  say "     [>] repo → home    [<] home → repo    [x] delete (when only-side)"
+  say "     [s] skip           [q] quit"
+  say ""
+
+  if [ "$force" -eq 1 ]; then
+    say "ℹ️  --force: every change skipped. Nothing to do."
+    exit 0
+  fi
+
+  quit=0
+  while IFS="$TAB" read -r hp rp status mode; do
+    say ""
+    say "----- $hp [$status] -----"
+    show_change_diff "$hp" "$rp" "$status"
+
+    case "$status" in
+      DIFFERS)
+        printf "Action? [>/</s/q]: " > /dev/tty
+        ;;
+      ONLY_HOME)
+        printf "Action? [< add to repo / x delete from home / s skip / q quit]: " > /dev/tty
+        ;;
+      ONLY_REPO)
+        printf "Action? [> add to home / s skip / q quit]: " > /dev/tty
+        ;;
+    esac
+    IFS= read -r ans < /dev/tty
+
+    case "$ans" in
+      ">") [ "$status" != "ONLY_HOME" ] || { say "⚠️  > not valid here, skipping"; continue; }
+           printf '%s%s%s%s%s\n' "$rp" "$TAB" "$hp" "$TAB" "R2H" >> "$actions"
+           say "✅ queued: repo → home" ;;
+      "<") [ "$status" != "ONLY_REPO" ] || { say "⚠️  < not valid here, skipping"; continue; }
+           printf '%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "H2R" >> "$actions"
+           say "✅ queued: home → repo" ;;
+      "x"|"X")
+           if [ "$status" = "ONLY_HOME" ]; then
+             printf '%s%s%s%s%s\n' "$hp" "$TAB" "" "$TAB" "DELHOME" >> "$actions"
+             say "✅ queued: delete $hp"
+           else
+             say "⚠️  x not valid here, skipping"
+           fi ;;
+      "q"|"Q") quit=1; break ;;
+      *) say "⏭️  skipped" ;;
+    esac
+  done < "$changes"
+
+  if [ "$quit" -eq 1 ]; then
+    if [ -s "$actions" ]; then
+      printf "Apply queued actions before quitting? [y/N]: " > /dev/tty
+      IFS= read -r ans < /dev/tty
+      case "$ans" in y|Y) ;; *) say "⏹️  aborted, nothing applied."; exit 0 ;; esac
+    else
+      say "⏹️  aborted, nothing queued."
+      exit 0
+    fi
+  fi
+
+  if [ ! -s "$actions" ]; then
+    say ""
+    say "ℹ️  no actions queued. Done."
+    exit 0
+  fi
+
+  bkroot_home="$BACKUP_ROOT/$TS/home"
+  bkroot_repo="$BACKUP_ROOT/$TS/repo"
+
+  say ""
+  say "🔁 Backups + applying queued actions…"
+  while IFS="$TAB" read -r src dest action; do
+    case "$action" in
+      R2H)
+        rel="${dest#"$HOME"/}"
+        backup_path_into "$dest" "$bkroot_home/$rel"
+        copy_path "$src" "$dest"
+        say "  ➡️  $src → $dest"
+        ;;
+      H2R)
+        repo_rel="${dest#"$REPO_DIR"/}"
+        backup_path_into "$dest" "$bkroot_repo/$repo_rel"
+        copy_path "$src" "$dest"
+        say "  ⬅️  $src → $dest"
+        ;;
+      DELHOME)
+        rel="${src#"$HOME"/}"
+        backup_path_into "$src" "$bkroot_home/$rel"
+        rm -rf "$src"
+        say "  ❌ deleted $src"
+        ;;
+    esac
+  done < "$actions"
+
+  say ""
+  say "✅ sync complete. Backup root: $BACKUP_ROOT/$TS"
+}
+
+# -----------------------------------------------------------------------------
+# Backup
+# -----------------------------------------------------------------------------
+
+backup_list() {
+  ls -1 "$BACKUP_ROOT" 2>/dev/null || say "(no backups)"
+}
+
+backup_show() {
+  ts="${1:-}"
+  if [ -z "$ts" ]; then
+    ts="$(ls -1 "$BACKUP_ROOT" 2>/dev/null | sort | tail -n1)"
+    [ -n "$ts" ] || die "No backups found in $BACKUP_ROOT"
+  fi
+  root="$BACKUP_ROOT/$ts"
+  [ -d "$root" ] || die "Backup not found: $ts"
+
+  say "📦 Backup $ts  ($root)"
+  for sect in home repo manual; do
+    sect_dir="$root/$sect"
+    [ -d "$sect_dir" ] || continue
+    say "   $sect/"
+    find "$sect_dir" -mindepth 1 -maxdepth 1 -print | sort | while read -r child; do
+      cname="$(basename "$child")"
+      if [ -d "$child" ] && [ "$cname" = ".config" ]; then
+        find "$child" -mindepth 1 -maxdepth 1 -print | sort | while read -r sub; do
+          sname="$(basename "$sub")"
+          if [ -d "$sub" ]; then
+            count="$(find "$sub" -type f | wc -l | tr -d ' ')"
+            say "     .config/$sname/    ($count files)"
+          else
+            say "     .config/$sname"
+          fi
+        done
+      elif [ -d "$child" ]; then
+        count="$(find "$child" -type f | wc -l | tr -d ' ')"
+        say "     $cname/    ($count files)"
+      else
+        say "     $cname"
+      fi
+    done
+  done
+}
+
+backup_create() {
+  bkroot="$BACKUP_ROOT/$TS/manual"
+  deploy_pairs | while IFS="$TAB" read -r src dest mode; do
+    backup_pair_into "$bkroot" "$src" "$dest" "$mode"
+  done
+  if [ -d "$bkroot" ]; then
+    write_skip_summary "manual"
+    say "✅ backup saved: $bkroot"
+  else
+    say "ℹ️  nothing to back up — none of the managed home paths exist yet."
+  fi
+}
+
+backup_restore() {
+  ts="${1:-}"
+  if [ -z "$ts" ]; then
+    ts="$(ls -1 "$BACKUP_ROOT" 2>/dev/null | sort | tail -n1)"
+    [ -n "$ts" ] || die "No backups found in $BACKUP_ROOT"
+  fi
+  if   [ -d "$BACKUP_ROOT/$ts/home" ];   then src_root="$BACKUP_ROOT/$ts/home"
+  elif [ -d "$BACKUP_ROOT/$ts/manual" ]; then src_root="$BACKUP_ROOT/$ts/manual"
+  else die "No restorable contents under Backup/$ts (need home/ or manual/)"
+  fi
+
+  say "🧩 Restoring \$HOME from $ts ($src_root)"
   find "$src_root" -type f -print | while read -r f; do
     rel="${f#"$src_root"/}"
     dest="$HOME/$rel"
-    say "⬅️  restore $f → $dest"
-    if [ "$DRYRUN" -eq 0 ]; then
-      mkdir -p "$(dirname "$dest")"
-      cp -f "$f" "$dest"
-    fi
+    mkdir -p "$(dirname "$dest")"
+    cp -f "$f" "$dest"
+    say "  ⬅️  $dest"
   done
-  say "✅ Restore complete."
+  say "✅ restore complete."
 }
 
-if [ "$RESTORE" -eq 1 ]; then
-  # pick latest if no timestamp supplied
-  if [ -z "$RESTORE_TS" ]; then
-    RESTORE_TS="$(ls -1 "$BACKUP_ROOT" 2>/dev/null | sort | tail -n1)"
-    [ -n "$RESTORE_TS" ] || die "No backups found in $BACKUP_ROOT"
-  fi
-  say "🧪 (dry-run=$DRYRUN) restore timestamp: $RESTORE_TS"
-  restore_from "$RESTORE_TS"
-  [ "$DRYRUN" -eq 1 ] && say "ℹ️ Dry run: no files modified. Use --apply to perform restore."
-  exit 0
-fi
+cmd_backup() {
+  sub="${1:-}"
+  shift 2>/dev/null || true
+  case "$sub" in
+    list)    backup_list ;;
+    show)    backup_show "$@" ;;
+    create)  backup_create ;;
+    restore) backup_restore "$@" ;;
+    *) die "Usage: install_copy.sh backup {list|show [ts]|create|restore [ts]}" ;;
+  esac
+}
 
-# --- normal install path ---
-say "📦 Installing from: $REPO_DIR"
-say "🔎 Mode: $( [ "$DRYRUN" -eq 1 ] && echo DRY-RUN || echo APPLY ), force=$FORCE"
-[ "$DRYRUN" -eq 0 ] && mkdir -p "$BACKUP_ROOT"
+# -----------------------------------------------------------------------------
+# Dispatch
+# -----------------------------------------------------------------------------
 
-# core files
-do_copy_file "$REPO_DIR/DotFiles/zshrc" "$HOME/.zshrc"
-do_copy_file "$REPO_DIR/DotFiles/vimrc" "$HOME/.vimrc"
-
-# zsh.d (clean sync to remove outdated scripts)
-do_sync_dir  "$REPO_DIR/DotFiles/zsh.d" "$HOME/.zsh.d"
-
-# ~/.config (merge each item under DotFiles/config/)
-mkdir -p "$HOME/.config"
-if [ -d "$REPO_DIR/DotFiles/config" ]; then
-  # iterate over top-level children (files or dirs)
-  find "$REPO_DIR/DotFiles/config" -mindepth 1 -maxdepth 1 -print | while read -r item; do
-    name="$(basename "$item")"
-    if [ -d "$item" ]; then
-      do_copy_dir "$item" "$HOME/.config/$name"
-    else
-      do_copy_file "$item" "$HOME/.config/$name"
-    fi
-  done
-else
-  say "ℹ️  No DotFiles/config directory; skipping ~/.config population."
-fi
-
-# ensure cache dirs exist
-say "📂 Ensure cache dirs: ~/.zshcache/{sessions,zoxide,vim}"
-if [ "$DRYRUN" -eq 0 ]; then
-  mkdir -p "$HOME/.zshcache/sessions" "$HOME/.zshcache/zoxide" "$HOME/.zshcache/vim"
-fi
-
-say "✅ Done."
-if [ "$DRYRUN" -eq 1 ]; then
-  say "   (dry run: no files were modified) — use --apply to perform actions."
-else
-  say "   Open a new shell or run: exec zsh"
-  [ -d "$BACKUP_ROOT/$TS" ] && say "   Backups saved under: $BACKUP_ROOT/$TS"
-fi
+verb="${1:-}"
+shift 2>/dev/null || true
+case "$verb" in
+  deploy) cmd_deploy "$@" ;;
+  sync)   cmd_sync "$@" ;;
+  backup) cmd_backup "$@" ;;
+  ''|help|-h|--help) usage ;;
+  *) printf '%s\n' "Unknown verb: $verb" >&2; usage; exit 1 ;;
+esac

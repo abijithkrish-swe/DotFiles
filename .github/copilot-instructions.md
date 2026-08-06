@@ -2,7 +2,7 @@
 
 ## What This Project Is
 
-A **modular Zsh dotfiles manager** that keeps `$HOME` clean. All shell configuration lives in numbered files under `DotFiles/zsh.d/`, loaded in lexical order by a minimal `~/.zshrc` loader. An installer (`install_copy.sh`) copies everything into place with dry-run, backup, and restore support.
+A **modular Zsh dotfiles manager** that keeps `$HOME` clean. All shell configuration lives in numbered files under `DotFiles/zsh.d/`, loaded in lexical order by a minimal `~/.zshrc` loader. An installer (`install_copy.sh`) deploys everything into place, with drift review, bidirectional sync, backup, and restore support.
 
 ## Directory Layout
 
@@ -136,20 +136,34 @@ Available topics: bat, colima, default, docker-basics, eza, fd, fzf-basic, fzf-i
 
 ## Installer (install_copy.sh)
 
+Verb-based. Running with no verb prints usage and changes nothing.
+
 ```
-./install_copy.sh               # Dry run (preview)
-./install_copy.sh --apply       # Copy files to ~
-./install_copy.sh --apply --force  # Overwrite (backs up first)
-./install_copy.sh --restore [ts]   # Restore from backup
-./install_copy.sh --list-backups   # Show available backups
-./install_copy.sh --config-diff    # Diff repo vs installed
+./install_copy.sh deploy           # Install repo → $HOME (drift review, backup, apply)
+./install_copy.sh deploy --force   # Skip drift review + confirmation (discards home edits)
+./install_copy.sh sync             # Bidirectional reconcile, direction chosen per change
+./install_copy.sh backup list      # Show available backups
+./install_copy.sh backup show [ts] # Summarize a backup (latest if no ts)
+./install_copy.sh backup create    # Manual snapshot of managed $HOME paths
+./install_copy.sh backup restore [ts]  # Restore $HOME from backup
+./install_copy.sh help
 ```
 
 **What goes where:**
-- `DotFiles/zshrc` → `~/.zshrc`
-- `DotFiles/vimrc` → `~/.vimrc`
-- `DotFiles/zsh.d/` → `~/.zsh.d/` (rsync — removes stale files)
-- `DotFiles/config/*` → `~/.config/*` (merge copy)
+- `DotFiles/zshrc` → `~/.zshrc` (copy)
+- `DotFiles/vimrc` → `~/.vimrc` (copy)
+- `DotFiles/zsh.d/` → `~/.zsh.d/` (mirror — removes stale files)
+- `DotFiles/config/*` → `~/.config/*` (merge copy — untracked files kept)
+- `~/.config/secrets/` → always excluded, from deploy/sync/backup alike
+
+**deploy** reviews local drift before overwriting anything: per file you can fold the
+home edit back into the repo (`y`/`a`), discard it (`n`), or abort (`q`). Then it backs
+up every touched home path to `Backup/<ts>/home/` and applies.
+
+**sync** is the bidirectional counterpart — neither side authoritative, per change pick
+`>` (repo→home), `<` (home→repo), `x` (delete, only-side), `s`, `q`. Note `<` writes over
+the repo working tree; the replaced file is backed up to `Backup/<ts>/repo/` first, and
+tracked files are also recoverable via git.
 
 ## Key Design Conventions
 

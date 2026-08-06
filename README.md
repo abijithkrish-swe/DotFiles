@@ -17,5 +17,9 @@ A modular **zsh + developer environment** setup that keeps `$HOME` clean, portab
 ## Quick Start
 
 1. Clone repo.
-2. Run `./install_copy.sh` (copies files to `~/.zsh.d`).
-3. Restart zsh.
+2. Run `./install_copy.sh deploy` (copies files to `~/.zsh.d`, `~/.zshrc`, `~/.config`).
+3. Restart zsh (`exec zsh`).
+
+Already installed and edited things directly in `$HOME`? Use `./install_copy.sh sync`
+to reconcile repo and home in either direction, one change at a time. Run
+`./install_copy.sh help` for all verbs.

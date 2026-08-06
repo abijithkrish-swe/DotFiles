@@ -25,15 +25,68 @@ Clone this repo and run the installer:
 ```sh
 git clone <your-repo-url> ~/dotfiles
 cd ~/dotfiles
-./install_copy.sh         # dry run (default, preview actions)
-./install_copy.sh --apply # actually copy files
+./install_copy.sh deploy   # install repo → $HOME
 ```
 
-### Installer modes
-- `--apply` → copy files into `$HOME`
-- `--force` → overwrite existing files (with backups in `Backup/<timestamp>/`)
-- `--restore [ts]` → restore from backup (latest or specific timestamp)
-- `--list-backups` → list all backups
+The installer is **verb-based**. Running it with no verb prints usage and changes
+nothing.
+
+### Verbs
+
+| Command | What it does |
+|---------|--------------|
+| `deploy [--force]` | Fresh install, repo → `$HOME`. |
+| `sync [--force]` | Bidirectional reconcile; pick a direction per change. |
+| `backup list` | List backup timestamps under `Backup/`. |
+| `backup show [ts]` | Summarize a backup (latest if no timestamp). |
+| `backup create` | Manual snapshot of the `$HOME` paths the repo manages. |
+| `backup restore [ts]` | Restore `$HOME` from a backup. |
+| `help` | Show usage. |
+
+### deploy
+
+Runs in three steps:
+
+1. **Drift review** — finds local `$HOME` edits that deploy would overwrite, and
+   files under `~/.zsh.d/` that the mirror would delete. Shows a diff per file and
+   asks whether to fold it back into the repo (`y`) or discard it (`n`); `a` folds
+   everything, `q` aborts without writing. Extra files under `~/.config/<x>/` are
+   preserved by deploy, so they are not treated as drift.
+2. **Backup** — snapshots every touched `$HOME` path to `Backup/<timestamp>/home/`.
+   Folded-back repo files are backed up to `Backup/<timestamp>/repo/` first.
+3. **Apply** — writes the files:
+   - `~/.zshrc`, `~/.vimrc` → copy
+   - `~/.zsh.d/` → mirror (stale files **deleted**)
+   - `~/.config/<x>/` → merge (untracked files kept)
+
+`--force` skips the drift review (local edits are discarded) and the confirmation
+prompt.
+
+### sync
+
+Reconciles repo and `$HOME` in **both** directions — neither side is authoritative.
+Each difference is shown as a diff, then you choose:
+
+- `>` repo → home
+- `<` home → repo
+- `x` delete (offered only when the file exists on just one side)
+- `s` skip, `q` quit
+
+Useful when you have edited `~/.zsh.d/` directly and want to fold changes back into
+the repo without a full reinstall.
+
+Both directions back up the file they replace before writing:
+
+- `>` saves the old home file to `Backup/<timestamp>/home/`
+- `<` saves the old repo file to `Backup/<timestamp>/repo/`
+- `x` saves the deleted file to `Backup/<timestamp>/home/`
+
+So picking the wrong direction is recoverable — from `Backup/`, or for repo files
+from git directly (`git checkout -- <path>`).
+
+`--force` here just auto-skips everything, so it is rarely useful.
+
+> `~/.config/secrets/` is excluded from `deploy`, `sync`, and `backup` in all cases.
 
 ---
 
@@ -108,10 +161,10 @@ mv ~/.viminfo ~/.zshcache/viminfo 2>/dev/null || true
 These are convenient on your Mac but **not required** (and not used on prod):
 
 ```sh
-brew install btop tldr procs
+brew install btop tlrc procs
 ```
   - btop → modern system monitor UI (we keep top unchanged)
-  - tldr → simplified manuals (e.g., tldr tar)
+  - tlrc → simplified manuals (e.g., tlrc tar)
   - procs → a nicer ps (tree view, filters)
   
 ---
