@@ -14,18 +14,17 @@ export LC_ALL="en_US.UTF-8"
 bindkey -v
 export KEYTIMEOUT=1  # faster ESC response (optional)
 
+# Build PATH: Homebrew > System > Misc   (typeset -U path deduplicates)
+path=(/usr/local/bin /usr/bin /bin /usr/sbin /sbin $path)
+
 if [ -d "/opt/homebrew/bin" ]; then
-  export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+  path=(/opt/homebrew/bin /opt/homebrew/sbin $path)
 fi
-export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
 
+# Low-priority additions (appended)
+# Mysql client (if installed)
 if [ -d "/usr/local/mysql/bin" ]; then
-  export PATH=$PATH:/usr/local/mysql/bin
-fi
-
-# Add Claude to PATH if it exists
-if [ -f "$HOME/.local/bin/claude" ]; then
-  export PATH="$PATH:$HOME/.local/bin"
+  path+=(/usr/local/mysql/bin)
 fi
 
 # --- XDG Base Directory ------------------------------------------------------
@@ -34,6 +33,16 @@ export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
 
+# User-local binaries (claude, copilot, etc.)
+if [ -d "$HOME/.local/bin" ] && ls "$HOME/.local/bin"/* &>/dev/null; then
+  path+=($HOME/.local/bin)
+
+  # Personal Claude config alias
+  if [ -f "$HOME/.local/bin/claude" ] && [ -d "$XDG_CONFIG_HOME/claude-personal" ]; then
+    alias myclaude='CLAUDE_CONFIG_DIR=$XDG_CONFIG_HOME/claude-personal claude'
+  fi
+fi
+
 # Main cache dir for Zsh-related state
 export ZSH_CACHE_DIR="$HOME/.zshcache"
 mkdir -p "$ZSH_CACHE_DIR"
@@ -41,7 +50,7 @@ mkdir -p "$ZSH_CACHE_DIR"
 # --- Zsh history (state) -----------------------------------------------------
 # Larger history & single location
 # We determine the filename here, but options are set later (in 50-history.zsh)
-# to avoid conflicts with Oh-My-Zs.
+# to avoid conflicts with Oh-My-Zsh.
 
 local _hist_name="zsh_history"
 

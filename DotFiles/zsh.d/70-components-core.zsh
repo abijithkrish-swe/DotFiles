@@ -20,8 +20,8 @@ component_switch_path() {
   
   # 3. Add new path
   if [[ -n "$new_path" ]]; then
-    # Append to PATH (keep system paths first)
-    path=($path "$new_path")
+    # Prepend to PATH (components override system/Homebrew)
+    path=("$new_path" $path)
     # 4. Update the state variable
     eval "$var_name='$new_path'"
   else
@@ -97,13 +97,15 @@ load_components_completion() {
 
 # Reset PATH to baseline (used by toolup)
 _path_base() {
+  # Reset to: Homebrew > System   (typeset -U path deduplicates)
+  path=(/usr/local/bin /usr/bin /bin /usr/sbin /sbin)
+
   if [ -d "/opt/homebrew/bin" ]; then
-    export PATH="/opt/homebrew/bin:/opt/homebrew/sbin:$PATH"
+    path=(/opt/homebrew/bin /opt/homebrew/sbin $path)
   fi
-  export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$PATH"
-  
+
   if [ -d "/opt/homebrew/opt/mysql-client/bin" ]; then
-    export PATH="/opt/homebrew/opt/mysql-client/bin:$PATH"
+    path=(/opt/homebrew/opt/mysql-client/bin $path)
   fi
 }
 

@@ -9,6 +9,9 @@ setopt hist_reduce_blanks
 setopt share_history
 setopt inc_append_history
 
+# Deduplicate PATH — keeps only the first occurrence of each entry
+typeset -U path
+
 # ---------------------------------------------------------------------
 # 1) ENVIRONMENT & PATH
 # ---------------------------------------------------------------------
