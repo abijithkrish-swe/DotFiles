@@ -16,6 +16,9 @@ Backup/
 # --- Local backups created by install_copy.sh ---
 OldDocs/
 
+# --- Local Claude session state ---
+sessions-claude.*
+
 # --- OS / editor junk ---
 *~
 .DS_Store

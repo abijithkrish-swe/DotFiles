@@ -5,11 +5,8 @@
   remotes = remote -v
   unpushed = log --branches --not --remotes --color --graph --pretty=format:'%Cred%h%Creset -%C(yellow)%d%Creset %s %Cgreen(%cr) %C(bold blue)<%an>%Creset' --abbrev-commit
   undo = reset --hard HEAD~1
-  prune-branches = !git remote prune origin && git branch -vv | grep ': gone]' | awk '{print $1}' | xargs git branch -D
-  prune-branches-safe = !"git remote prune origin && git branch -vv --format='%(refname:short) %(upstream:track)' \
-    | awk '$2 ~ /\\[gone\\]/ {print $1}' \
-    | grep -Ev '^(master|main|develop)$' \
-    | xargs -p -r git branch -D"
+  prune-branches = !"r=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null | cut -d/ -f1); [ -n \"$r\" ] || r=origin; git remote prune \"$r\" >/dev/null 2>&1; git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | awk '$2==\"[gone]\" {print $1}' | while IFS= read -r b; do [ -n \"$b\" ] && git branch -D \"$b\"; done"
+  prune-branches-safe = !"r=$(git rev-parse --abbrev-ref --symbolic-full-name @{u} 2>/dev/null | cut -d/ -f1); [ -n \"$r\" ] || r=origin; git remote prune \"$r\" >/dev/null 2>&1; git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads | awk '$2==\"[gone]\" {print $1}' | grep -Ev '^(master|main|develop)$' | while IFS= read -r b; do [ -n \"$b\" ] || continue; printf 'Delete branch %s? [y/N] ' \"$b\" > /dev/tty; IFS= read -r ans < /dev/tty; case \"$ans\" in y|Y) git branch -D \"$b\" ;; *) echo \"Skipped $b\" ;; esac; done"
 
 [core]
 	excludesfile = ~/.gitignore_global

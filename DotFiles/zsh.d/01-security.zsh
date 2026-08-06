@@ -11,6 +11,11 @@
 export KEEP_ZERO=true
 
 if [[ "$KEEP_ZERO" == "true" ]]; then
+  # Node.js: trust zero-trust CA for TLS connections
+  if [ -f "$HOME/.config/zero-trust-certs.pem" ]; then
+    export NODE_EXTRA_CA_CERTS="$HOME/.config/zero-trust-certs.pem"
+  fi
+
   export ZERO_HELPER_STATUS=ON
   export http_proxy=http://127.0.0.1:3128
   export https_proxy=http://127.0.0.1:3128

@@ -18,6 +18,46 @@ _redis_bindir_for() {
   return 1
 }
 
+_redis_write_default_conf() {
+  local conf="$1"
+  cat > "$conf" <<'EOF'
+# Redis Configuration
+# Generated for version-specific customization
+
+# Disable disk save (in-memory only)
+save ""
+appendonly no
+
+# Network & Persistence
+port 6379
+bind 127.0.0.1
+timeout 0
+
+# Memory Management
+maxmemory 256mb
+maxmemory-policy allkeys-lru
+
+# Logging
+loglevel notice
+logfile ""
+
+# Database
+databases 16
+
+# To enable disk save, uncomment below:
+# save 900 1        # 900 sec (15 min): if at least 1 key changed
+# save 300 10       # 300 sec (5 min): if at least 10 keys changed
+# save 60 10000     # 60 sec: if at least 10000 keys changed
+# appendonly yes
+# appendfilename "appendonly.aof"
+EOF
+}
+
+_redis_conf_value() {
+  local conf="$1" key="$2"
+  awk -v k="$key" '$0 !~ /^[[:space:]]*#/ && $1 == k {print $2; exit}' "$conf" 2>/dev/null
+}
+
 redis_list() {
   local d v
   [[ -d "$COMPONENTS/Redis" ]] || { echo "No Redis components at $COMPONENTS/Redis"; return 0; }
@@ -58,6 +98,7 @@ redis_clear() {
 # Start redis-server (with optional redis.conf if present)
 redis_start() {
   local v="${1:-$DEFAULT_REDIS}" bin
+  setopt local_options no_monitor
   
   # Ensure we have the bin in path or find it
   if ! bin="$(_redis_bindir_for "$v")/redis-server" 2>/dev/null; then
@@ -76,38 +117,7 @@ redis_start() {
   # Auto-initialize conf if it doesn't exist
   if [[ ! -f "$conf" ]]; then
     mkdir -p "$confdir"
-    # Create minimal, in-memory-only config
-    cat > "$conf" <<'EOF'
-# Redis Configuration
-# Generated for version-specific customization
-
-# Disable disk save (in-memory only)
-save ""
-appendonly no
-
-# Network & Persistence
-port 6379
-bind 127.0.0.1
-timeout 0
-
-# Memory Management
-maxmemory 256mb
-maxmemory-policy allkeys-lru
-
-# Logging
-loglevel notice
-logfile ""
-
-# Database
-databases 16
-
-# To enable disk save, uncomment below:
-# save 900 1        # 900 sec (15 min): if at least 1 key changed
-# save 300 10       # 300 sec (5 min): if at least 10 keys changed
-# save 60 10000     # 60 sec: if at least 10000 keys changed
-# appendonly yes
-# appendfilename "appendonly.aof"
-EOF
+    _redis_write_default_conf "$conf"
     echo "✅ Created default conf at: $conf (disk save disabled)"
   fi
   
@@ -115,15 +125,20 @@ EOF
   
   nohup "$bin" "$conf" > "/tmp/redis_$v.log" 2>&1 &
   local pid=$!
-  disown %1 2>/dev/null  # Detach from job control to suppress notifications
   
   sleep 2
   
   # Check if process is still running
   if kill -0 $pid 2>/dev/null; then
+    local redis_host redis_port
+    redis_host="$(_redis_conf_value "$conf" "bind")"
+    redis_port="$(_redis_conf_value "$conf" "port")"
+    [[ -n "$redis_host" ]] || redis_host="127.0.0.1"
+    [[ -n "$redis_port" ]] || redis_port="6379"
+
     # Process is running, also verify connection
     if command -v redis-cli >/dev/null 2>&1; then
-      if redis-cli ping >/dev/null 2>&1; then
+      if redis-cli -h "$redis_host" -p "$redis_port" ping >/dev/null 2>&1; then
         echo "✅ Redis started successfully (logs: /tmp/redis_$v.log)"
       else
         echo "⚠️  Process started but connection failed. Logs:"
@@ -160,38 +175,7 @@ redis_init_conf() {
     return 0
   fi
   
-  # Create minimal, in-memory-only config
-  cat > "$conf" <<'EOF'
-# Redis Configuration
-# Generated for version-specific customization
-
-# Disable disk save (in-memory only)
-save ""
-appendonly no
-
-# Network & Persistence
-port 6379
-bind 127.0.0.1
-timeout 0
-
-# Memory Management
-maxmemory 256mb
-maxmemory-policy allkeys-lru
-
-# Logging
-loglevel notice
-logfile ""
-
-# Database
-databases 16
-
-# To enable disk save, uncomment below:
-# save 900 1        # 900 sec (15 min): if at least 1 key changed
-# save 300 10       # 300 sec (5 min): if at least 10 keys changed
-# save 60 10000     # 60 sec: if at least 10000 keys changed
-# appendonly yes
-# appendfilename "appendonly.aof"
-EOF
+  _redis_write_default_conf "$conf"
   
   echo "✅ Created $conf (disk save disabled by default)"
 }
