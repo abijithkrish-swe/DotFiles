@@ -11,40 +11,60 @@ Layout: `DotFiles/zsh.d/` (modules), `DotFiles/config/` (XDG configs), `Docs/` (
 
 ## Dev Tool Management (Component System)
 
-All tools are installed under `~/Components/<Tool>/<Version>/` and activated via shell functions. The canonical form is **`use_<tool>`**; inverse-form aliases (`<tool>_use`) exist for nearly all tools, so both styles work.
+All tools are installed under `~/Components/<Tool>/<Version>/`. **Only versions listed in the manifest `~/.config/components/components.conf` can be used.** It is the approved list (source: `DotFiles/config/components/components.conf`). Shell functions, `toolup`, login defaults, tab completion and the `toolshelf` MCP server all read it. An unlisted folder on disk is rejected. Design: `Docs/AgentComponents.md`.
+
+**AI agents:** don't use the `use_*` functions; they depend on zsh helpers that agent shells don't load. Use the `toolshelf` MCP (`list_components`, `get_component_env`) and prefix commands with the exports it returns. Never install or upgrade tools; ask the user.
+
+Activation is via **`use_<tool> [version]`**. The version can be exact or a unique prefix on a segment boundary: `17` → 17, `3.9` → 3.9.12, `22` → 22.21.1, but `2` is rejected rather than guessed. With no version it uses the manifest default; `off` deactivates. Inverse aliases (`<tool>_use`) exist for nearly all tools.
 
 ```
-use_jdk 17          # Sets JAVA_HOME, updates PATH (alias: jdk_use, jdk11/17/21/25)
-use_maven 3.9.6     # Sets M2_HOME, MAVEN_HOME (alias: maven_use)
-use_gradle 8.6      # Sets GRADLE_HOME (alias: gradle_use)
-use_ant 1.10        # Sets ANT_HOME (alias: ant_use)
-use_python 3.11     # PATH only — no PYTHONHOME (venv safe). Alias: python_use, py
-use_node 20.0       # PATH only (alias: node_use)
-use_go 1.22         # Sets GOROOT (alias: go_use)
-use_redis 7.2       # PATH + start/stop (alias: redis_use)
-use_mysql 8.0       # Sets MYSQL_HOME + start/stop (alias: mysql_use)
-use_protoc 3.0      # PATH only (alias: protobuf_use) — note: canonical is `use_protoc`
+use_jdk 17          # Sets JAVA_HOME, updates PATH (aliases: jdk, jdk_use, jdk11/17/25, jdkoff)
+use_maven 3.9       # Sets M2_HOME, MAVEN_HOME (alias: maven_use)
+use_gradle 8.14     # Sets GRADLE_HOME (alias: gradle_use)
+use_ant 1.9         # Sets ANT_HOME (alias: ant_use)
+use_python 3.11     # PATH only — no PYTHONHOME (venv safe). Alias: python_use, py (none approved yet)
+use_node 22         # PATH only (alias: node_use)
+use_go 1.27         # Sets GOROOT (alias: go_use)
+use_rust            # PATH only; CARGO_HOME stays ~/.cargo (alias: rust_use)
+use_redis 7         # PATH + start/stop (alias: redis_use)
+use_mysql 8         # PATH + MYSQL_HOME/data dirs + start/stop (alias: mysql_use)
+use_protoc 25       # PATH only (aliases: protobuf_use, use_protobuf)
 ```
 
-Each tool also has `<tool>_list` (show installed), `<tool>_clear` (deactivate), and `components_status` (show all active; alias `status_components`).
+Installed now: JDK 11/17/25/26.0.2 (no 21; plan is 17 → 25), Maven 3.9.12/4.0.0-rc-5, Gradle 8.14.4/9.3.1, Ant 1.9.6, Node 20/22/24/25/26, Go 1.24.5/1.27.4, Rust 1.99.1, Protobuf 3.16.3/25.5, Redis 6.2.14/7.4.5, MySQL 5.7.30/8.0.43. Run `components_check` for the live list.
+
+Each tool also has:
+- `<tool>_list`: approved versions with default/autoload flags, plus broken or unapproved folders.
+- `<tool>_clear`: deactivate.
+
+Shared commands: `components_status` (what's active; alias `status_components`), `components_check` (health of the whole manifest), and `components_reload`. Reload is rarely needed: edits to the manifest are picked up automatically.
 
 Redis/MySQL extras: `redis_start`/`redis_stop` (aliases `rstart`/`rstop`/`rcli`); `mysql_start`/`mysql_stop`/`mysql_restart`/`mysql_cli`/`mysql_current`.
 
+### Adding or updating a component
+
+1. Unpack to `~/Components/<Dir>/<version>/`.
+2. Add `<tool> <version>` to `DotFiles/config/components/components.conf`, plus `default`/`autoload` if wanted.
+3. Deploy with `install_copy.sh deploy`, then check with `components_check`.
+
+A new tool type also needs a `@tool` line, and a ~15-line `7x-<tool>.zsh` wrapper over `components_activate`.
+
 ### Per-Project Versions (.toolsrc)
 
-Projects can pin tool versions via a `.toolsrc` file in the project root, then run `toolup` to apply.
+Projects can pin tool versions via a `.toolsrc` file in the project root, then run `toolup` to apply. The same approval and prefix rules apply. An empty value skips that tool. `toolup` returns 1 and lists anything that failed.
 
 ```ini
 JDK=17
-MAVEN=3.9.6
-GRADLE=8.6
-NODE=20.0
-REDIS=7.2
-ANT=1.10
-PROTOBUF=3.0
-GO=1.22
+MAVEN=3.9.12
+GRADLE=8.14
+NODE=22
+GO=1.27
+RUST=1.99
+REDIS=7.4
+ANT=1.9.6
+PROTOBUF=25.5
 PYTHON=3.11
-MYSQL_DEFAULT_VER=8.0.43
+MYSQL_DEFAULT_VER=8.0.43   # active MySQL client version
 MYSQL_START_VER=8.0.43
 PATH_PREPEND=/some/dir
 EXPORT=FOO=bar
@@ -52,15 +72,12 @@ EXPORT=FOO=bar
 
 `toolup` resets PATH to baseline (Homebrew + system) before applying directives. There is also `mkbin` to create and prepend a project-local `.bin/`.
 
-## Default Versions (auto-activated on interactive login)
+## Default Versions
 
-- JDK: 11
-- MySQL client: 8.0.43
-- Redis: 7.4.5
-- Python: not auto-applied (only if `DEFAULT_PYTHON` is set)
-- Node: `NODE_DEFAULT_VERSION=20.19.5` is recorded but **not** auto-activated
+Set in the manifest, not in zsh. `default` is used when no version is given, and is exported as `DEFAULT_<TOOL>`. `autoload` is activated on interactive login by `79-defaults.zsh`.
 
-Recorded-only defaults (not auto-applied): `DEFAULT_ANT=1.10`, `DEFAULT_PROTOBUF=3.0`.
+- Autoload: JDK 11, MySQL 8.0.43, Redis 7.4.5
+- Defaults: JDK 11, Maven 3.9.12, Gradle 8.14.4, Ant 1.9.6, Node 20.19.5, Go 1.27.4, Rust 1.99.1, Protobuf 3.16.3, Redis 7.4.5, MySQL 8.0.43
 
 ## Key Paths
 
@@ -148,7 +165,8 @@ Verb-based; no verb prints usage and changes nothing.
 ## When Creating Projects
 
 - If the project needs specific tool versions, create a `.toolsrc` file.
-- Java projects: user has JDK 11/17/25/26, Maven, Gradle, Ant available (no JDK 21; plan is 17 → 25).
+- Java projects: JDK 11/17/25/26, Maven, Gradle, Ant available (see `components_check`).
+- Rust projects: `use_rust` (standalone toolchain, no rustup).
 - Python projects: use `use_python`; user manages venvs directly (no wrapper).
 - Node projects: prefer `use_node` (component-based); NVM is present but disabled.
 - Proxy: corporate zero-trust proxy is active by default (`http://127.0.0.1:3128`).

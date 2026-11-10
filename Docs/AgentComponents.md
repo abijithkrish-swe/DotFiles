@@ -7,7 +7,7 @@ anything on their own.
 Read this when you: set up a new machine, add/update a component, or wire up a
 new coding agent.
 
-> Status: **step 1 done** (manifest + MCP read tools + `get_component_env`). See [Implementation order](#implementation-order).
+> Status: **steps 1–2 done**: the manifest drives the MCP read tools, `get_component_env` and the zsh `use_*` / `toolup` / login defaults. See [Implementation order](#implementation-order).
 
 ---
 
@@ -247,7 +247,7 @@ own repo.
    machine's git identity, including any per-folder rules (`install_copy.sh identity`).
 3. Restore `~/Components/` (copy from backup or re-download archives listed in
    the manifest). Install **one Node first** — the MCP server needs it.
-4. `components_check` (planned) — every manifest line resolves on disk.
+4. `components_check`: confirms every manifest line resolves on disk.
 5. Clone `toolshelf-mcp` anywhere, then `./install.sh --register`. This builds
    into `<components>/toolshelf-mcp` and registers it in Claude Code. For a
    different layout, add `--prefix DIR`, `--components DIR` and/or
@@ -324,8 +324,8 @@ own repo.
 ## Implementation order
 
 - [x] 1. `components.conf` + Node parser; MCP read tools + `get_component_env` use it; MCP registered from project path with pinned node
-- [ ] 2. zsh `70-components-core.zsh` reads the manifest; retire `79-defaults.zsh` values
-- [ ] 3. `get_component_env`, `run` (sandbox mode), `request_component`
+- [x] 2. zsh `70-components-core.zsh` reads the manifest (use_*, toolup, completion, `components_check`); `79-defaults.zsh` autoloads from `autoload` flags
+- [ ] 3. ~~`get_component_env`~~ (done in step 1); `run` (sandbox mode), `request_component`, `resolve_toolsrc`
 - [ ] 4. `AGENTS.md`, `blocklist.txt`, `guard.sh`, Claude Code + Codex settings; deploy via installer
 - [ ] 5. `run` docker mode with pinned digests
-- [ ] 6. `components_check`; fix MCP README/config; run MCP from project path
+- [ ] 6. ~~`components_check`~~ (done in step 2); ~~fix MCP README/config; run MCP from installed copy~~ (done); colima_status single zsh call

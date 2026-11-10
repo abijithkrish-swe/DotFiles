@@ -13,7 +13,7 @@
 setopt LOCAL_OPTIONS
 
 : "${COMPONENTS:="$HOME/Components"}"
-: "${DEFAULT_MYSQL:="8.0.43"}"
+# DEFAULT_MYSQL comes from the components manifest (70-components-core.zsh).
 
 # Optional: set to "1" to keep a stable client socket symlink at ~/.mysql/current.sock
 : "${MYSQL_UPDATE_SYMLINK:="0"}"
@@ -30,9 +30,10 @@ typeset -g MYSQL_PORT=""
 
 # --- Internals --------------------------------------------------------
 
-# Return Core/bin path for a valid version
+# Return Core/bin path for a valid, approved (manifest-listed) version
 _mysql_bindir_for() {
-  local v="$1" root="$COMPONENTS/Mysql/$v/Core/bin"
+  components_is_approved mysql "$1" || return 1
+  local v="$1" root="$COMPONENTS/Mysql/$1/Core/bin"
   [[ -x "$root/mysql" && -x "$root/mysqld" ]] || return 1
   print -r -- "$root"
 }
@@ -100,35 +101,29 @@ _datadir_only_ignorable_junk() {
 
 # --- 1) view available versions --------------------------------------
 
-mysql_list() {
-  local d v
-  [[ -d "$COMPONENTS/Mysql" ]] || { echo "No Mysql components at $COMPONENTS/Mysql"; return 0; }
-  echo "Available MySQL versions:"
-  for d in "$COMPONENTS/Mysql"/*; do
-    [[ -d "$d" ]] || continue
-    v="${d:t}"
-    _mysql_bindir_for "$v" >/dev/null && echo "  $v"
-  done | { command -v sort >/dev/null && sort -V || sort; }
-}
+mysql_list() { components_list mysql MySQL; }
 
 # --- PATH management --------------------------------------------------
 
 mysql_clear() {
   component_switch_path "_MYSQL_ACTIVE_BINDIR" ""
+  component_set_status "MySQL" "off"
   echo "MySQL removed from PATH"
 }
 
 # --- 2) use_mysql <version> ------------------------------------------
 
 use_mysql() {
-  local v="${1:-$DEFAULT_MYSQL}" bindir root
-  
+  local v="$1" bindir root
+
   if [[ "$v" == "off" ]]; then
     mysql_clear
     return
   fi
 
-  [[ -n "$v" ]] || { echo "Usage: use_mysql <version> (tip: mysql_list)"; return 1; }
+  # Approved version (exact or unique prefix); manifest default if omitted
+  components_resolve mysql "$v" || { echo "(tip: mysql_list)"; return 1; }
+  v="$CM_V"
 
   if ! bindir="$(_mysql_bindir_for "$v")"; then
     echo "❌ MySQL $v not found or invalid (need Core/bin with mysql & mysqld)."
@@ -139,6 +134,7 @@ use_mysql() {
   root="$(_mysql_root_for "$v")"
 
   component_switch_path "_MYSQL_ACTIVE_BINDIR" "$bindir"
+  component_set_status "MySQL" "$v"
   rehash
 
   # Set per-version envs
@@ -350,10 +346,7 @@ mysql_current() {
 }
 
 # --- Autoload default -------------------------------------------------
-
-if _mysql_bindir_for "$DEFAULT_MYSQL" >/dev/null; then
-  use_mysql "$DEFAULT_MYSQL" >/dev/null
-fi
+# Handled by 79-defaults.zsh from the manifest's `autoload` flag.
 
 # --- mysql help module ------------------------------------------------
 _devhelp_mysql() {

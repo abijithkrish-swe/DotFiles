@@ -3,10 +3,12 @@
 # ---------------------------------------------------------------------
 
 : "${COMPONENTS:="$HOME/Components"}"
-: "${DEFAULT_REDIS:="7.4.5"}"
+# DEFAULT_REDIS comes from the components manifest (70-components-core.zsh).
 
+# Bin dir for an approved (manifest-listed) version; fails for anything else.
 _redis_bindir_for() {
   local v="$1"
+  components_is_approved redis "$v" || return 1
   local root="$COMPONENTS/Redis/$v"
   local d
   for d in "$root/src" "$root/bin"; do
@@ -58,40 +60,23 @@ _redis_conf_value() {
   awk -v k="$key" '$0 !~ /^[[:space:]]*#/ && $1 == k {print $2; exit}' "$conf" 2>/dev/null
 }
 
-redis_list() {
-  local d v
-  [[ -d "$COMPONENTS/Redis" ]] || { echo "No Redis components at $COMPONENTS/Redis"; return 0; }
-  echo "Available Redis versions:"
-  for d in "$COMPONENTS/Redis"/*; do
-     v="${d:t}"
-     if _redis_bindir_for "$v" >/dev/null; then
-        echo "  $v"
-     fi
-  done | sort -V
-}
+redis_list() { components_list redis Redis; }
 
-# use_redis <ver>
+# use_redis [ver]  — approved version (exact or unique prefix), default if omitted
 use_redis() {
-  local v="$1"
-  component_set_status "Redis" "$v"
-  
-  if [[ "$v" == "off" || -z "$v" ]]; then
+  if [[ "$1" == "off" ]]; then
     redis_clear
     return
   fi
 
-  local bindir
-  bindir="$(_redis_bindir_for "$v")" || { echo "Redis $v (or binaries) not found."; return 1; }
+  components_activate redis Redis _REDIS_ACTIVE_BIN "$1" || return 1
 
-  # Use core helper
-  component_switch_path "_REDIS_ACTIVE_BIN" "$bindir"
-
-  echo "➡️ Using Redis $v ($bindir)"
+  echo "➡️ Using Redis $CM_V ($CM_BIN_DIR)"
   command -v redis-cli >/dev/null && redis-cli --version
 }
 
 redis_clear() {
-  component_switch_path "_REDIS_ACTIVE_BIN" ""
+  components_deactivate redis Redis _REDIS_ACTIVE_BIN
   echo "Redis removed from PATH"
 }
 
@@ -99,7 +84,9 @@ redis_clear() {
 redis_start() {
   local v="${1:-$DEFAULT_REDIS}" bin
   setopt local_options no_monitor
-  
+  # Accept a unique prefix like use_redis does ("7" → 7.4.5)
+  components_resolve redis "$v" 2>/dev/null && v="$CM_V"
+
   # Ensure we have the bin in path or find it
   if ! bin="$(_redis_bindir_for "$v")/redis-server" 2>/dev/null; then
      # Try current PATH if no version arg
