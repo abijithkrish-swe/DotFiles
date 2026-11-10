@@ -14,6 +14,12 @@ These rules apply to every coding agent. They are short on purpose.
 3. **Run builds and tests with toolshelf `run`** (macOS sandbox: project-only
    writes, proxy-only network, no secrets). Pass the project folder as `cwd`.
    Untrusted code goes in Docker mode once it exists. Until then, ask first.
+   Keep output small:
+   - use quiet flags (`mvn -q`, `gradle -q`, `npm --silent`, `cargo -q`) unless
+     you're debugging;
+   - do multi-step work in one `run` rather than repeating `get_component_env`
+     exports on every command;
+   - read the run's log file only when the last 8 KB isn't enough.
 4. **Don't change build-tool or toolchain versions.** That covers Gradle/Maven
    wrapper versions, Docker image tags or digests, Gradle JDK auto-download,
    and `GOTOOLCHAIN`.
