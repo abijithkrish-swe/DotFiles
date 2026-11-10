@@ -25,6 +25,7 @@ typeset -gA CM_HOMEENV        # tool -> env vars set to the home, space-separate
 typeset -gA CM_VERSIONS       # tool -> approved versions, space-separated, sorted
 typeset -gA CM_DEFAULT        # tool -> default version
 typeset -gA CM_AUTOLOAD       # tool -> version activated at interactive login
+typeset -gA CM_ONPATH         # tool -> version whose bin dir is put on PATH at login (no activation)
 typeset -gA CM_DOCKER         # "tool:version" -> pinned image
 typeset -ga CM_ERRORS
 typeset -g  CM_MTIME=""
@@ -36,10 +37,10 @@ components_load() {
   emulate -L zsh
   local file="$COMPONENTS_MANIFEST" line name ver kv k val flag n=0
   local -a words errs tools
-  local -A dir root bin check homeenv versions defaults autoload docker
+  local -A dir root bin check homeenv versions defaults autoload onpath docker
 
   CM_TOOLS=() CM_DIR=() CM_ROOT=() CM_BIN=() CM_CHECK=() CM_HOMEENV=()
-  CM_VERSIONS=() CM_DEFAULT=() CM_AUTOLOAD=() CM_DOCKER=() CM_ERRORS=()
+  CM_VERSIONS=() CM_DEFAULT=() CM_AUTOLOAD=() CM_ONPATH=() CM_DOCKER=() CM_ERRORS=()
   CM_MTIME=""
 
   if [[ ! -f "$file" ]]; then
@@ -87,6 +88,9 @@ components_load() {
         autoload)
           if [[ -n "$autoload[$name]" ]]; then errs+=("line $n: second autoload for $name")
           else autoload[$name]="$ver"; fi ;;
+        onpath)
+          if [[ -n "$onpath[$name]" ]]; then errs+=("line $n: second onpath for $name")
+          else onpath[$name]="$ver"; fi ;;
         docker=*)
           docker[$name:$ver]="${flag#docker=}"
           [[ "${flag#docker=}" =~ '@sha256:[0-9a-f]{64}$' ]] || \
@@ -96,6 +100,10 @@ components_load() {
     done
   done < "$file"
 
+  for name in ${(k)onpath}; do
+    [[ -n "$autoload[$name]" ]] && errs+=("$name: autoload and onpath are exclusive (autoload already puts it on PATH)")
+  done
+
   if (( $#errs )); then
     CM_ERRORS=("invalid manifest $file:" "${errs[@]}")
     return 1
@@ -104,7 +112,7 @@ components_load() {
   CM_TOOLS=("${tools[@]}")
   CM_DIR=("${(@kv)dir}") CM_ROOT=("${(@kv)root}") CM_BIN=("${(@kv)bin}")
   CM_CHECK=("${(@kv)check}") CM_HOMEENV=("${(@kv)homeenv}")
-  CM_DEFAULT=("${(@kv)defaults}") CM_AUTOLOAD=("${(@kv)autoload}") CM_DOCKER=("${(@kv)docker}")
+  CM_DEFAULT=("${(@kv)defaults}") CM_AUTOLOAD=("${(@kv)autoload}") CM_ONPATH=("${(@kv)onpath}") CM_DOCKER=("${(@kv)docker}")
   for name in "${tools[@]}"; do
     CM_VERSIONS[$name]="${(j: :)${(on)${=versions[$name]}}}"   # numeric-aware sort
   done
@@ -118,7 +126,7 @@ components_ensure_loaded() {
   mtime="$(zstat +mtime -- "$COMPONENTS_MANIFEST" 2>/dev/null)"
   if [[ -z "$CM_MTIME" || "$mtime" != "$CM_MTIME" ]]; then
     if ! components_load; then
-      print -u2 -l -- "components: ${^CM_ERRORS}"
+      print -u2 -l -- "${(@)CM_ERRORS/#/components: }"
       return 1
     fi
   fi
@@ -198,6 +206,7 @@ components_list() {
     flags=()
     [[ "$CM_DEFAULT[$tool]" == "$v" ]] && flags+=(default)
     [[ "$CM_AUTOLOAD[$tool]" == "$v" ]] && flags+=(autoload)
+    [[ "$CM_ONPATH[$tool]" == "$v" ]] && flags+=(onpath)
     [[ -n "$CM_DOCKER[$tool:$v]" ]] && flags+=(docker)
     if components_resolve "$tool" "$v" 2>/dev/null; then
       echo "  $v${flags:+ (${(j:, :)flags})}"

@@ -92,6 +92,8 @@ Rules for the manifest:
   disk. A listed version whose folder is missing is reported as broken.
 - `default` = what `toolup`/agents pick when no version is given.
   `autoload` = activated on interactive login (replaces `79-defaults.zsh`).
+  `onpath` = only the bin dir goes on PATH at login, e.g. a database client for
+  remote hosts. Nothing is activated or started. It is exclusive with `autoload`.
 - **Docker images are pinned by digest, never by tag.** Use the multi-arch
   *index* digest (`docker buildx imagetools inspect <image:tag>`) so it
   resolves to arm64 on Apple Silicon.

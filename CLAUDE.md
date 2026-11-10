@@ -74,9 +74,10 @@ EXPORT=FOO=bar
 
 ## Default Versions
 
-Set in the manifest, not in zsh. `default` is used when no version is given, and is exported as `DEFAULT_<TOOL>`. `autoload` is activated on interactive login by `79-defaults.zsh`.
+Set in the manifest, not in zsh. `default` is used when no version is given, and is exported as `DEFAULT_<TOOL>`. On interactive login, `79-defaults.zsh` activates `autoload` versions (`use_<tool>`: PATH, env vars, status). For `onpath` versions it only puts the bin dir on PATH, without activating them or starting anything.
 
-- Autoload: JDK 11, MySQL 8.0.43, Redis 7.4.5
+- Autoload: JDK 11
+- On PATH only: MySQL 8.0.43 client (for remote instances; no `MYSQL_HOME`/socket set, server not started)
 - Defaults: JDK 11, Maven 3.9.12, Gradle 8.14.4, Ant 1.9.6, Node 20.19.5, Go 1.27.4, Rust 1.99.1, Protobuf 3.16.3, Redis 7.4.5, MySQL 8.0.43
 
 ## Key Paths
