@@ -68,6 +68,9 @@ Verbs:
                            --force skips step 1 (drift discarded).
 
   sync   [--force]         Bidirectional reconcile, no fresh install.
+                           ~/.zshrc with lines apps appended: [m] moves them to
+                           ~/.zshrc.local, then restores the repo version (deploy
+                           offers the same in its drift review).
                            Per change, pick a direction:
                               [>] repo → home    [<] home → repo
                               [x] delete (only when one side is missing)
@@ -321,6 +324,60 @@ show_change_diff() {
 # Deploy
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+# ~/.zshrc lines added by apps
+# -----------------------------------------------------------------------------
+# Installers and apps (an IDE's PATH line, the zero-trust helper's proxy
+# exports, …) append to ~/.zshrc. Those lines are machine-specific: they belong
+# in ~/.zshrc.local (sourced by the repo's .zshrc), not in the repo, and deploy
+# would otherwise overwrite them.
+
+ZSHRC_LOCAL="$HOME/.zshrc.local"
+
+# zshrc_extra_lines <home> <repo> <out>: succeed if <home> is <repo> plus
+# lines appended at the end, writing those lines to <out>.
+zshrc_extra_lines() {
+  # Also handles an app appending without a newline first, which glues its
+  # text onto the last repo line: that remainder becomes the first extra line.
+  : > "$3"
+  awk -v out="$3" '
+    NR == FNR { r[FNR] = $0; n = FNR; next }           # repo file
+    FNR < n   { if ($0 != r[FNR]) { bad = 1; exit } next }
+    FNR == n  {
+      if ($0 == r[n]) next
+      if (index($0, r[n]) == 1) { print substr($0, length(r[n]) + 1) > out; extra = 1; next }
+      bad = 1; exit
+    }
+    { print > out; extra = 1 }
+    END { exit (bad || !extra) ? 1 : 0 }
+  ' "$2" "$1"
+}
+
+# move_to_zshrc_local <lines-file>: append non-blank lines not already in
+# ~/.zshrc.local (backed up first). Prints what happened.
+# (sh functions share variables: zl_* names keep backup_path_into's src/bkp
+# from clobbering ours)
+move_to_zshrc_local() {
+  zl_src="$1"
+  backup_path_into "$ZSHRC_LOCAL" "$BACKUP_ROOT/$TS/home/.zshrc.local"
+  [ -f "$ZSHRC_LOCAL" ] || : > "$ZSHRC_LOCAL"
+  zl_new="$(mktemp "${TMPDIR:-/tmp}/zshrc-local.XXXXXX")"
+  while IFS= read -r zl_line || [ -n "$zl_line" ]; do
+    case "$zl_line" in *[![:space:]]*) ;; *) continue ;; esac
+    grep -qxF -- "$zl_line" "$ZSHRC_LOCAL" || printf '%s\n' "$zl_line" >> "$zl_new"
+  done < "$zl_src"
+  if [ -s "$zl_new" ]; then
+    {
+      printf '\n# Moved from ~/.zshrc by install_copy.sh on %s\n' "$(date '+%Y-%m-%d %H:%M')"
+      cat "$zl_new"
+    } >> "$ZSHRC_LOCAL"
+    say "✅ moved $(wc -l < "$zl_new" | tr -d ' ') line(s) → ~/.zshrc.local"
+  else
+    say "✅ already in ~/.zshrc.local (nothing new to move)"
+  fi
+  rm -f "$zl_new"
+}
+
 cmd_deploy() {
   force=0
   for a in "$@"; do
@@ -380,9 +437,20 @@ cmd_deploy() {
         continue
       fi
 
-      printf "Fold to repo? [y/n/a/q]: " > /dev/tty
+      extra="$(mktemp "${TMPDIR:-/tmp}/zshrc-extra.XXXXXX")"
+      if [ "$hp" = "$HOME/.zshrc" ] && [ "$status" = "DIFFERS" ] && zshrc_extra_lines "$hp" "$rp" "$extra"; then
+        say "ℹ️  ~/.zshrc is the repo version plus $(wc -l < "$extra" | tr -d ' ') appended line(s) (apps add these)."
+        printf "[m] move them to ~/.zshrc.local (recommended) / fold to repo? [m/y/n/a/q]: " > /dev/tty
+      else
+        printf "Fold to repo? [y/n/a/q]: " > /dev/tty
+      fi
       IFS= read -r ans < /dev/tty
       case "$ans" in
+        m|M) if [ -s "$extra" ]; then
+               move_to_zshrc_local "$extra"   # deploy then restores the repo's ~/.zshrc
+             else
+               say "⚠️  m only applies to lines appended to ~/.zshrc; discarded"
+             fi ;;
         y|Y) printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift_sel"
              say "✅ folded" ;;
         a|A) printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift_sel"
@@ -391,6 +459,7 @@ cmd_deploy() {
         q|Q) quit=1; break ;;
         *)   say "⏭️  discarded" ;;
       esac
+      rm -f "$extra"
     done < "$drift"
     rm -f "$drift"
 
@@ -519,9 +588,16 @@ cmd_sync() {
     say "----- $hp [$status] -----"
     show_change_diff "$hp" "$rp" "$status"
 
+    extra="$(mktemp "${TMPDIR:-/tmp}/zshrc-extra.XXXXXX")"
     case "$status" in
       DIFFERS)
-        printf "Action? [>/</s/q]: " > /dev/tty
+        if [ "$hp" = "$HOME/.zshrc" ] && zshrc_extra_lines "$hp" "$rp" "$extra"; then
+          say "ℹ️  ~/.zshrc is the repo version plus $(wc -l < "$extra" | tr -d ' ') appended line(s) (apps add these)."
+          printf "Action? [m move them to ~/.zshrc.local, then repo → home / > / < / s / q]: " > /dev/tty
+        else
+          : > "$extra"
+          printf "Action? [>/</s/q]: " > /dev/tty
+        fi
         ;;
       ONLY_HOME)
         printf "Action? [< add to repo / x delete from home / s skip / q quit]: " > /dev/tty
@@ -533,6 +609,13 @@ cmd_sync() {
     IFS= read -r ans < /dev/tty
 
     case "$ans" in
+      m|M) if [ -s "$extra" ]; then
+             move_to_zshrc_local "$extra"
+             printf '%s%s%s%s%s\n' "$rp" "$TAB" "$hp" "$TAB" "R2H" >> "$actions"
+             say "✅ queued: repo → home (~/.zshrc back to the repo version)"
+           else
+             say "⚠️  m only applies to lines appended to ~/.zshrc, skipping"
+           fi ;;
       ">") [ "$status" != "ONLY_HOME" ] || { say "⚠️  > not valid here, skipping"; continue; }
            printf '%s%s%s%s%s\n' "$rp" "$TAB" "$hp" "$TAB" "R2H" >> "$actions"
            say "✅ queued: repo → home" ;;
@@ -549,6 +632,7 @@ cmd_sync() {
       "q"|"Q") quit=1; break ;;
       *) say "⏭️  skipped" ;;
     esac
+    rm -f "$extra"
   done < "$changes"
 
   if [ "$quit" -eq 1 ]; then
@@ -573,25 +657,27 @@ cmd_sync() {
 
   say ""
   say "🔁 Backups + applying queued actions…"
-  while IFS="$TAB" read -r src dest action; do
-    case "$action" in
+  # a_* names: backup_path_into/copy_path set their own src/dest (sh has no
+  # local vars), which used to turn every copy here into a copy onto itself.
+  while IFS="$TAB" read -r a_src a_dest a_action; do
+    case "$a_action" in
       R2H)
-        rel="${dest#"$HOME"/}"
-        backup_path_into "$dest" "$bkroot_home/$rel"
-        copy_path "$src" "$dest"
-        say "  ➡️  $src → $dest"
+        rel="${a_dest#"$HOME"/}"
+        backup_path_into "$a_dest" "$bkroot_home/$rel"
+        copy_path "$a_src" "$a_dest"
+        say "  ➡️  $a_src → $a_dest"
         ;;
       H2R)
-        repo_rel="${dest#"$REPO_DIR"/}"
-        backup_path_into "$dest" "$bkroot_repo/$repo_rel"
-        copy_path "$src" "$dest"
-        say "  ⬅️  $src → $dest"
+        repo_rel="${a_dest#"$REPO_DIR"/}"
+        backup_path_into "$a_dest" "$bkroot_repo/$repo_rel"
+        copy_path "$a_src" "$a_dest"
+        say "  ⬅️  $a_src → $a_dest"
         ;;
       DELHOME)
-        rel="${src#"$HOME"/}"
-        backup_path_into "$src" "$bkroot_home/$rel"
-        rm -rf "$src"
-        say "  ❌ deleted $src"
+        rel="${a_src#"$HOME"/}"
+        backup_path_into "$a_src" "$bkroot_home/$rel"
+        rm -rf "$a_src"
+        say "  ❌ deleted $a_src"
         ;;
     esac
   done < "$actions"

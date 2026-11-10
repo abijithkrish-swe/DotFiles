@@ -167,8 +167,8 @@ Auto-prefers `fd` then `rg` for the default file source.
 
 Verb-based; no verb prints usage and changes nothing.
 
-- `deploy [--force]` — repo → `$HOME`. Reviews local drift first (fold back to repo or discard), backs up touched home paths to `Backup/<ts>/home/`, then applies: `~/.zshrc`/`~/.vimrc` copy, `~/.zsh.d/` mirror (deletes stale), `~/.config/<x>/` merge. `--force` skips review and confirmation.
-- `sync [--force]` — bidirectional reconcile, no side authoritative. Per change: `>` repo→home, `<` home→repo, `x` delete, `s` skip, `q` quit. Whichever side gets overwritten is backed up first (`Backup/<ts>/home/` or `Backup/<ts>/repo/`).
+- `deploy [--force]` — repo → `$HOME`. Reviews local drift first (fold back to repo or discard); when `~/.zshrc` is the repo version plus lines appended by apps, it also offers `[m]`, which moves those lines to `~/.zshrc.local` (no duplicates, backed up) and handles text glued onto the last line, backs up touched home paths to `Backup/<ts>/home/`, then applies: `~/.zshrc`/`~/.vimrc` copy, `~/.zsh.d/` mirror (deletes stale), `~/.config/<x>/` merge. `--force` skips review and confirmation.
+- `sync [--force]` — bidirectional reconcile, no side authoritative. Per change: `>` repo→home, `<` home→repo, `x` delete, `s` skip, `q` quit. For a `~/.zshrc` with app-appended lines, `m` moves them to `~/.zshrc.local`, then restores the repo version. Whichever side gets overwritten is backed up first (`Backup/<ts>/home/` or `Backup/<ts>/repo/`).
 - `backup list | show [ts] | create | restore [ts]` — snapshots under `Backup/<ts>/`.
 - `identity` — prompts for this machine's git identity (default + optional per-folder, e.g. `~/Projects/Personal`); stored in `~/.config/git/identity` + `identity.d/`, never in the repo. `deploy` offers it when missing; `[user]` folded back into the repo config is stripped. Other per-machine git settings (e.g. this Mac's absolute credential-helper path) go in `~/.config/git/local`, included last.
 - `agents` — merges agent guardrails into every Claude Code config (`~/.claude` and `~/.config/claude-personal`, the one `myclaude` uses):
