@@ -15,6 +15,8 @@ Commands
 components_check        # every tool: approved versions, flags, broken/unlisted
 components_status       # what is active in this shell (alias: status_components)
 components_reload       # force re-read of the manifest (rarely needed)
+components_images       # pinned Docker images: pulled or not, sizes, retired ones
+components_images prune # remove retired pinned images (asks first; never your own)
 <tool>_list             # one tool, e.g. jdk_list, node_list, mysql_list
 use_<tool> [ver]|off    # activate; no ver = default; prefix ok (26 → 26.0.2)
 

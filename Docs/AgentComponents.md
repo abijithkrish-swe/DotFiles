@@ -422,4 +422,4 @@ into Claude configs. The sandbox profile is generated per run by toolshelf-mcp
 - [x] 3. `run` (sandbox mode), `request_component` (+ `components_requests` in zsh), `resolve_toolsrc`; blocklist in `DotFiles/config/agents/`
 - [x] 4. `AGENTS.md`, `guard.sh`, Claude Code settings in both configs (`install_copy.sh agents`, offered by deploy); toolshelf registered in both. Codex: later
 - [x] 5. `run` docker mode: pinned images in the manifest, per-run container, network none or enforced proxy (internal network + forwarder)
-- [ ] 6. ~~`components_check`~~ (done in step 2); ~~fix MCP README/config; run MCP from installed copy~~ (done); colima_status single zsh call
+- [x] 6. ~~`components_check`~~ (done in step 2); ~~fix MCP README/config; run MCP from installed copy~~ (done); ~~colima_status single zsh call~~ (done: direct parallel CLI calls, 5.4 s → 1.5 s)

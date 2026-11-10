@@ -265,6 +265,75 @@ components_requests() {
   echo "Approve: install it, add it to the manifest (devhelp components). Then: components_requests clear"
 }
 
+# components_images [prune] — Docker images pinned in the manifest (docker=,
+# @image): pulled or not, and size. Every pinned image is remembered in
+# $TOOLSHELF_STATE/images.log (toolshelf's run adds the ones it uses), so
+# `prune` can remove images that were pinned once and are retired now — and
+# only those: your own images (e.g. node:22) are never touched.
+components_images() {
+  emulate -L zsh
+  local dir="${TOOLSHELF_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/toolshelf}"
+  local log="$dir/images.log" ref sz total=0 k
+  local -a pinned retired gone
+  components_ensure_loaded || return 1
+  (( $+commands[docker] )) || { echo "docker CLI not found"; return 1; }
+  docker info >/dev/null 2>&1 || { echo "Docker isn't running (start Colima: costart)."; return 1; }
+
+  pinned=(${(u)${(v)CM_DOCKER}} ${(u)${(v)CM_IMAGES}})
+  mkdir -p "$dir"; touch "$log"
+  for ref in $pinned; do grep -qxF -- "$ref" "$log" || print -r -- "$ref" >> "$log"; done
+
+  # inspect needs name@digest (it doesn't resolve the name:tag@digest form run/pull accept)
+  _cm_size() { local r="$1"; docker image inspect --format '{{.Size}}' "${${r%%@*}%:*}@${r#*@}" 2>/dev/null }
+  _cm_human() { awk -v b="$1" 'BEGIN { split("B KB MB GB", u); i = 1; while (b >= 1000 && i < 4) { b /= 1000; i++ } printf "%.1f %s", b, u[i] }' }
+
+  echo "Pinned images (components manifest):"
+  for k in ${(ko)CM_DOCKER} ${(ko)CM_IMAGES}; do
+    ref="${CM_DOCKER[$k]:-$CM_IMAGES[$k]}"
+    sz="$(_cm_size "$ref")"
+    if [[ -n "$sz" ]]; then
+      (( total += sz ))
+      printf '  %-18s %-36s %s\n' "$k" "${ref%%@*}" "pulled, $(_cm_human $sz)"
+    else
+      printf '  %-18s %-36s %s\n' "$k" "${ref%%@*}" "not pulled (downloads on first docker run)"
+    fi
+  done
+  echo "  total pulled: $(_cm_human $total)"
+
+  for ref in ${(f)"$(<"$log")"}; do
+    [[ -n "$ref" ]] || continue
+    (( ${pinned[(Ie)$ref]} )) && continue
+    if [[ -n "$(_cm_size "$ref")" ]]; then retired+=("$ref"); else gone+=("$ref"); fi
+  done
+  echo ""
+  if (( $#retired )); then
+    echo "Retired (no longer in the manifest, still on disk):"
+    for ref in $retired; printf '  %-46s %s\n' "${ref%%@*}" "$(_cm_human $(_cm_size "$ref"))"
+  else
+    echo "No retired images on disk."
+  fi
+
+  if [[ "$1" == "prune" ]]; then
+    (( $#retired )) || { echo "Nothing to prune."; }
+    if (( $#retired )); then
+      local ans
+      print -n "Remove these ${#retired} image(s)? [y/N] "; read -r ans
+      [[ "$ans" == [yY]* ]] || { echo "Kept."; return 0; }
+      for ref in $retired; do
+        docker image rm "$ref" >/dev/null 2>&1 && echo "  removed ${ref%%@*}" || echo "  could not remove ${ref%%@*} (in use?)"
+      done
+      gone+=($retired)
+    fi
+    # forget refs that are gone from disk and no longer pinned
+    if (( $#gone )); then
+      grep -vxF -f <(print -rl -- $gone) "$log" >| "$log.tmp"; mv "$log.tmp" "$log"
+    fi
+  elif (( $#retired )); then
+    echo "Remove them with: components_images prune"
+  fi
+  unfunction _cm_size _cm_human
+}
+
 # components_activate <tool> <label> <state-var> [version]
 # Resolve, export home env vars, swap PATH, record status. Prints nothing.
 components_activate() {
