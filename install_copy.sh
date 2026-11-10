@@ -95,7 +95,8 @@ Verbs:
                               settings.json: + toolshelf permissions (read tools
                                 allowed, run asks), install denies, and a
                                 PreToolUse hook (~/.config/agents/guard.sh)
-                                that enforces blocklist.txt
+                                that enforces blocklist.txt, plus sounds
+                                (Notification: needs you, Stop: done)
                               CLAUDE.md: + @~/.config/agents/AGENTS.md
                            Merge only (your settings kept), backed up, re-runnable.
                            deploy offers it.

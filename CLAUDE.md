@@ -172,7 +172,7 @@ Verb-based; no verb prints usage and changes nothing.
 - `backup list | show [ts] | create | restore [ts]` — snapshots under `Backup/<ts>/`.
 - `identity` — prompts for this machine's git identity (default + optional per-folder, e.g. `~/Projects/Personal`); stored in `~/.config/git/identity` + `identity.d/`, never in the repo. `deploy` offers it when missing; `[user]` folded back into the repo config is stripped. Other per-machine git settings (e.g. this Mac's absolute credential-helper path) go in `~/.config/git/local`, included last.
 - `agents` — merges agent guardrails into every Claude Code config (`~/.claude` and `~/.config/claude-personal`, the one `myclaude` uses):
-  - `settings.json` gets toolshelf permissions (read tools allowed, `run` asks), install-command denies, and a `PreToolUse` Bash hook, `~/.config/agents/guard.sh`, which enforces `~/.config/agents/blocklist.txt`.
+  - `settings.json` gets toolshelf permissions (read tools allowed, `run` asks), install-command denies, and a `PreToolUse` Bash hook, `~/.config/agents/guard.sh`, which enforces `~/.config/agents/blocklist.txt`. It also gets sound hooks: `Notification` plays Sosumi when Claude needs input or approval, and `Stop` plays Glass when a reply is done.
   - `CLAUDE.md` gets an import of `~/.config/agents/AGENTS.md`.
 
   It merges only, makes a backup first, and is safe to re-run. `deploy` offers it. Hook tests: `tests/agents/guard-test.pl`.

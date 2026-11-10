@@ -283,6 +283,7 @@ configs:
 | `permissions.ask` | `mcp__toolshelf__run` |
 | `permissions.deny` | a backstop to the hook for the most common install commands: sudo, Homebrew changes, global npm, pip, rustup, cargo install, sdkman, nvm, softwareupdate |
 | `hooks.PreToolUse` (matcher `Bash`) | `$HOME/.config/agents/guard.sh` |
+| `hooks.Notification` / `hooks.Stop` | `afplay` Sosumi (needs input or approval) / Glass (reply done). Every config gets them, `myclaude` included |
 
 **`guard.sh`** is a Perl script with no dependencies. It reads the hook JSON, matches
 `tool_input.command` against `blocklist.txt` (the same list `run` uses), and exits 2
