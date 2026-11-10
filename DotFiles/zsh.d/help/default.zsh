@@ -16,15 +16,20 @@ catn / batp            # bat wrappers (numbers / pager) - see 'devhelp bat'
 
 # Dev Components (Standard API: list, use, start, stop, clear)
 -------------------------------------------------------------
-use_ant <ver>          # Ant (sets ANT_HOME)
-use_maven <ver>        # Maven (sets M2_HOME, MAVEN_HOME)
-use_protoc <ver>       # Protobuf (sets PATH)
-use_python <ver>       # Python (sets PATH)
-use_go <ver>           # Go (sets GOROOT, PATH)
-use_node <ver>         # Node (sets PATH)
-use_jdk <ver>          # JDK (sets JAVA_HOME, PATH)
-use_redis <ver>        # Redis (sets PATH) [Service: redis_start/stop]
-use_mysql <ver>        # MySQL (sets PATH) [Service: mysql_start/stop]
+# Only versions in the components manifest; [ver] = exact or prefix, none = default
+use_ant [ver]          # Ant (sets ANT_HOME)
+use_maven [ver]        # Maven (sets M2_HOME, MAVEN_HOME)
+use_protoc [ver]       # Protobuf (sets PATH)
+use_python [ver]       # Python (sets PATH)
+use_go [ver]           # Go (sets GOROOT, PATH)
+use_node [ver]         # Node (sets PATH)
+use_jdk [ver]          # JDK (sets JAVA_HOME, PATH)
+use_redis [ver]        # Redis (sets PATH) [Service: redis_start/stop]
+use_mysql [ver]        # MySQL (sets PATH) [Service: mysql_start/stop]
+use_gradle [ver]       # Gradle (sets GRADLE_HOME)
+use_rust [ver]         # Rust (sets PATH) - see 'devhelp rust'
+components_check       # approved versions + health - see 'devhelp components'
+toolup                 # apply .toolsrc in current dir
 
 # Git sync helpers
 syncm                  # stash, checkout master, fetch, pull --rebase

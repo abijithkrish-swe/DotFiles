@@ -1,6 +1,6 @@
 # --- Python help module ----------------------------------------------------
 _devhelp_python() {
-cat <<'EOF'
+cat <<'EOF2'
 Python — Quick Reference
 ========================
 
@@ -9,11 +9,13 @@ Your portable layout
 ~/Components/Python/<ver>/
   ├─ bin/         # python3, pip3
   └─ ...
+(No Python versions are approved yet — add one to the components manifest,
+ see 'devhelp components'.)
 
 Helper commands (from your zsh modules)
 ---------------------------------------
-python_list          # list available Python versions
-use_python <ver>|off # switch active Python version (appends bin/ to PATH)
+python_list          # approved Python versions (from the components manifest)
+use_python [ver]|off # switch active Python (prepends bin/ to PATH; prefix ok)
   e.g. use_python 3.12
        use_python off
 
@@ -30,7 +32,7 @@ Notes
 -----
 • This manages PATH only, not PYTHONHOME (to allow venvs to work).
 • Use `python -m venv` to create virtual environments.
-EOF
+EOF2
 }
 
 _devhelp_register "python" _devhelp_python

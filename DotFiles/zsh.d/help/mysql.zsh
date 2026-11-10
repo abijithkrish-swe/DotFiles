@@ -15,8 +15,8 @@ Portable layout (per version)
 
 Core helper commands
 --------------------
-mysql_list                     # list available valid versions
-use_mysql <ver>|off            # switch PATH & envs to version (adds Core/bin)
+mysql_list                     # approved versions (from the components manifest)
+use_mysql [ver]|off            # switch PATH & envs to version (prefix ok: 5.7 → 5.7.30)
 mysql_start [--port N] [ver]   # start server; asks to stop or auto-picks free port
 mysql_stop [ver]               # cleanly stop server (mysqladmin or pid)
 mysql_cli [args...]            # mysql client for current version; auto uses socket
@@ -36,7 +36,7 @@ mysql_start
 mysql_cli -uroot -p
 
 # start another version in parallel on new port
-mysql_start --port 3310 5.7.44
+mysql_start --port 3310 5.7.30
 
 # stop currently running instance
 mysql_stop
@@ -47,7 +47,10 @@ mysql_current
 Config & data locations
 -----------------------
 Default components root:   $HOME/Components/Mysql
-Default version:           (from $DEFAULT_MYSQL)
+Default version:           manifest default ($DEFAULT_MYSQL)
+At login:                  8.0.43 client on PATH only (manifest `onpath`):
+                           mysql -h <host> -u <user> -p  works for remote
+                           instances; nothing is activated or started.
 Each version defines:
   Data/:      actual MySQL datadir
   Log/:       error / slow / query logs

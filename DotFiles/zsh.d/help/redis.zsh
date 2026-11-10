@@ -6,13 +6,13 @@ Redis — Quick Reference
 
 Helper commands (Standard)
 ---------------------------------------
-redis_list               # list installed versions under ~/Components/Redis
-use_redis <ver>          # switch to version (append bin/ to PATH)
+redis_list               # approved versions (from the components manifest)
+use_redis [ver]          # switch to version (prefix ok: 7 → 7.4.5; none = default)
 redis_clear              # remove Redis from PATH
 
 Service Control
 ---------------------------------------
-redis_start [ver]        # start redis-server (in-memory-only if no conf)
+redis_start [ver]        # start redis-server (approved versions; default if omitted)
 redis_stop               # stop all redis-server processes owned by you
 redis_init_conf <ver>    # initialize Conf/redis.conf (disk save disabled)
 
@@ -27,9 +27,11 @@ rcli           -> redis-cli
 Layout
 ---------------------------------------
 ~/Components/Redis/<VER>/
-  ├─ bin/              # redis-server, redis-cli
+  ├─ src/ or bin/       # redis-server, redis-cli
   └─ Conf/
       └─ redis.conf    # version-specific config (disk save disabled by default)
+
+Not started or put on PATH at login — run use_redis or redis_start when needed.
 
 Configuration
 ---------------------------------------

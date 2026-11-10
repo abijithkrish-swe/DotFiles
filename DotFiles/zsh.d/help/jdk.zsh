@@ -6,9 +6,8 @@ JDK — Quick Reference
 
 Your portable layout
 --------------------
-~/Components/JDK/11/
-~/Components/JDK/17/
-~/Components/JDK/25/
+~/Components/JDK/<ver>/     # flat (11) or macOS bundle (Contents/Home)
+  approved: see jdk_list (11, 17, 25, 26.0.2)
 
 Helper commands (from your zsh modules)
 ---------------------------------------
@@ -39,10 +38,10 @@ jcmd <pid> GC.heap_info  # GC details
 
 Notes
 -----
-• Your PATH is appended (not prepended), so system Java may still be used
-  unless JAVA_HOME/bin is earlier in PATH.
+• JAVA_HOME/bin is prepended to PATH, so it wins over system Java.
 • JDK switch is per-shell-session (doesn’t persist globally).
-• You can default to JDK 11 by calling `jdk11` in your zshrc.
+• JDK 11 is autoloaded at login (manifest `autoload`); change it in the
+  components manifest, not in zshrc — see 'devhelp components'.
 EOF
 }
 
