@@ -155,9 +155,13 @@ Order of checks, then the run (`toolshelf-mcp/src/sandbox.ts`):
    `DotFiles/config/agents/blocklist.txt`), `<regex> ## <reason>` per line. A
    match returns the reason and nothing runs. A missing or invalid list refuses
    every run (fail closed).
-2. **Project dir:** must be a real directory at least two levels under `$HOME`.
-   It is never `~/Projects` itself, and never inside `~/.config`, `~/.local`,
-   `~/.cache`, `~/Library`, `~/Components`, `~/.ssh`, and similar.
+2. **Project dir:** must be a real directory at least two levels under `$HOME`, and
+   it or a parent (no higher than two levels below `$HOME`) must contain a project
+   marker: `.git`, `.toolsrc`, `package.json`, `pom.xml`, `build.gradle*`,
+   `settings.gradle*`, `build.xml`, `Cargo.toml`, `go.mod`, `pyproject.toml`,
+   `Makefile`, or an empty `.toolshelf`. A folder of projects such as
+   `~/Projects/Personal` is therefore rejected. It is never inside `~/.config`,
+   `~/.local`, `~/.cache`, `~/Library`, `~/Components`, `~/.ssh`, and similar.
 3. **Versions:** approved only, with the same matching rules as everywhere else.
 4. **Environment:** built from scratch, nothing inherited (no tokens, no `use_secret` values):
    - PATH = approved component bins + `/usr/bin:/bin:/usr/sbin:/sbin` (no Homebrew);
