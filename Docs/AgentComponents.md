@@ -117,7 +117,9 @@ Who reads it:
 - **Installed copy:** `~/Components/toolshelf-mcp`. Built by the repo's `install.sh`,
   the same copy-don't-symlink idea as `install_copy.sh` for the dotfiles.
   `install.sh` stages a copy and builds it with the manifest's default Node.
-  It smoke-tests the result, then swaps it in. `INSTALLED` records the revision.
+  It runs the test suite (`npm test`: 71 tests in a fake `$HOME`, including real
+  `sandbox-exec` runs) and a smoke test, then swaps it in. Any failure leaves the
+  live install alone. `INSTALLED` records the revision.
 - **Server name:** `toolshelf`, so agents see its tools as `mcp__toolshelf__*`.
 - **Update flow:** edit source → commit → `./install.sh`. Agents pick it up on
   their next start. Manifest edits need no reinstall.
