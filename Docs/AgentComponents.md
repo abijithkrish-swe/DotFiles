@@ -188,7 +188,7 @@ Order of checks, then the run (`toolshelf-mcp/src/sandbox.ts`):
      There is no DNS, no direct internet, and no unix sockets, so the Docker socket is unreachable too.
 7. **Run:** `zsh -f -c <command>` in its own process group. The timeout (default
    600 s, max 3600) kills the whole tree. The response has the exit code, duration
-   and the last 30 KB of output. The full log is at
+   and the last 8 KB of output (`tail_kb` changes it, up to 64). The full log is at
    `$XDG_STATE_HOME/toolshelf/runs/<id>.log`.
 
 Verified on this Mac:
