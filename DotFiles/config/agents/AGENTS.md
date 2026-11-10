@@ -21,7 +21,13 @@ These rules apply to every coding agent. They are short on purpose.
      you're debugging;
    - do multi-step work in one `run` rather than repeating `get_component_env`
      exports on every command;
-   - read the run's log file only when the last 8 KB isn't enough.
+   - read the run's log file only when the last 8 KB isn't enough;
+   - don't pipe through `tail`/`head` (`run` already returns the end; set
+     `tail_kb` for more or less).
+
+   `run` is for builds, tests and scripts. **Edit files with your edit tools,
+   not `sed -i`/`cat >` inside `run`.** Temp files go in `$TMPDIR`; `/tmp` is
+   not writable in the sandbox.
 4. **Don't change build-tool or toolchain versions.** That covers Gradle/Maven
    wrapper versions, Docker image tags or digests, Gradle JDK auto-download,
    and `GOTOOLCHAIN`.

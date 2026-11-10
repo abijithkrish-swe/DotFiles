@@ -70,6 +70,9 @@ Troubleshooting
   "is not approved"              → install + add to the manifest (devhelp components)
   "Blocked: …"                   → the command installs/upgrades tools; run it yourself if wanted
   "Docker isn't running"         → costart
+  "note: the sandbox blocked a file operation" → something wrote outside the
+      project, e.g. /tmp or ~. Temp files belong in $TMPDIR (private per run).
+      Shown even when the command exited 0 (errors hidden by 2>/dev/null).
 EOF2
 }
 
