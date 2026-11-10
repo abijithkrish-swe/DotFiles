@@ -77,3 +77,10 @@
 	helper = osxkeychain
 [credential "https://github.com"]
 	useHttpPath = true
+
+# Identity is machine-local and never stored in this repo.
+# Create or change it with: install_copy.sh identity
+#   ~/.config/git/identity      default [user] + per-folder includeIf rules
+#   ~/.config/git/identity.d/*  one [user] per folder rule
+[include]
+	path = ~/.config/git/identity

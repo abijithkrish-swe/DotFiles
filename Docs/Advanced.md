@@ -19,3 +19,24 @@ Toolup allows per-directory version switching.
 ## Customization
 - **Local Overrides**: Create `~/.zshrc.local` for machine-specific settings.
 - **Extra Aliases**: Create `~/.zsh.d/99-my-aliases.zsh`.
+
+## Git Identity (per machine)
+Your git name/email is **not** stored in this repo. The tracked
+`~/.config/git/config` only includes a machine-local file:
+
+```
+~/.config/git/identity        default [user] + per-folder rules
+~/.config/git/identity.d/*    one [user] per folder rule
+```
+
+- **New machine:** `install_copy.sh deploy` asks for it when it's missing
+  (`--force` just prints a reminder). Run `install_copy.sh identity` any time to
+  change it.
+- **Per-folder identities:** answer "y" to *Add a folder-specific identity* and
+  give the folder, e.g. `~/Projects/Personal` → personal name/email. Repos under
+  that folder use it automatically (`includeIf "gitdir/i:..."`, case-insensitive).
+  Each machine has its own rules, so folders can differ between devices.
+- **Leak guard:** if a `sync`/drift fold copies a `[user]` section from home into
+  the repo's git config, the installer strips it. Don't use
+  `git config --global user.*`; use `install_copy.sh identity`.
+- Check which identity a repo gets: `git config user.email` (inside the repo).

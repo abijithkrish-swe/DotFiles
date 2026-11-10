@@ -4,6 +4,10 @@
 
 # --- Secrets (never commit) ---
 DotFiles/config/secrets/
+
+# --- Machine-local git identity (lives only in ~/.config/git/) ---
+DotFiles/config/git/identity
+DotFiles/config/git/identity.d/
 zshrc_backup_final
 phase1_old.zip
 

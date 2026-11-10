@@ -14,9 +14,13 @@
 #   backup create            Manual full snapshot of $HOME paths the repo manages
 #                            (excluding ~/.config/secrets).
 #   backup restore [ts]      Restore $HOME from a backup.
+#   identity                 Set this machine's git identity (prompts).
 #   help                     Show usage.
 #
 # ~/.config/secrets/ is always excluded from deploy, sync, and backup.
+# Git identity is machine-local (~/.config/git/identity + identity.d/), never in
+# the repo: deploy offers to create it, and a [user] section folded back into
+# the repo's git config is stripped automatically.
 # -----------------------------------------------------------------------------
 
 set -e
@@ -26,9 +30,24 @@ BACKUP_ROOT="$REPO_DIR/Backup"
 TS="$(date +%Y%m%d-%H%M%S)"
 TAB="$(printf '\t')"
 SECRETS_REL=".config/secrets"
+GIT_CFG_DIR="$HOME/.config/git"
+IDENTITY_FILE="$GIT_CFG_DIR/identity"
+IDENTITY_DIR="$GIT_CFG_DIR/identity.d"
+REPO_GIT_CONFIG="$REPO_DIR/DotFiles/config/git/config"
 
 say() { printf '%s\n' "$*"; }
 die() { printf '%s\n' "❌ $*" >&2; exit 1; }
+
+# ask <prompt> — read one line into REPLY from the terminal (stdin if no tty).
+ask() {
+  if { : < /dev/tty; } 2>/dev/null; then
+    printf '%s' "$1" > /dev/tty
+    IFS= read -r REPLY < /dev/tty || REPLY=""
+  else
+    printf '%s' "$1" >&2
+    IFS= read -r REPLY || REPLY=""
+  fi
+}
 
 usage() {
   cat <<'EOF'
@@ -60,6 +79,12 @@ Verbs:
                            (excluding ~/.config/secrets) → Backup/<ts>/manual/.
   backup restore [ts]      Restore $HOME from Backup/<ts>/home (or manual/).
 
+  identity                 Set this machine's git identity (prompts):
+                              default name/email, plus optional per-folder
+                              identities (e.g. ~/Projects/Personal → personal).
+                           Stored in ~/.config/git/identity (+ identity.d/),
+                           never in the repo. deploy offers it when missing.
+
   help                     Show this message.
 
 Examples:
@@ -69,6 +94,7 @@ Examples:
   install_copy.sh backup list
   install_copy.sh backup show
   install_copy.sh backup create
+  install_copy.sh identity
 EOF
 }
 
@@ -370,6 +396,7 @@ cmd_deploy() {
         copy_path "$hp" "$rp"
         say "  ⬅️  $hp → $rp"
       done < "$drift_sel"
+      strip_repo_identity
     fi
   else
     rm -f "$drift"
@@ -403,6 +430,20 @@ cmd_deploy() {
     say "  ➡️  $dest  ($mode)"
   done
   mkdir -p "$HOME/.zshcache/sessions" "$HOME/.zshcache/zoxide" "$HOME/.zshcache/vim"
+
+  # First deploy on a machine: no git identity yet.
+  if [ ! -f "$IDENTITY_FILE" ]; then
+    say ""
+    if [ "$force" -eq 1 ]; then
+      say "🪪 No git identity on this machine yet. Run: install_copy.sh identity"
+    else
+      ask "🪪 No git identity on this machine yet. Set it up now? [Y/n]: "
+      case "$REPLY" in
+        n|N) say "ℹ️  Later: install_copy.sh identity" ;;
+        *)   cmd_identity ;;
+      esac
+    fi
+  fi
 
   say ""
   say "✅ deploy complete. Backup root: $BACKUP_ROOT/$TS"
@@ -527,9 +568,125 @@ cmd_sync() {
         ;;
     esac
   done < "$actions"
+  strip_repo_identity
 
   say ""
   say "✅ sync complete. Backup root: $BACKUP_ROOT/$TS"
+}
+
+# -----------------------------------------------------------------------------
+# Git identity (machine-local, never in the repo)
+# -----------------------------------------------------------------------------
+
+# The repo's git config must not carry a [user] section. Called after anything
+# copies home → repo (deploy fold, sync <), so an identity set with
+# `git config --global` can't leak back into the repo.
+strip_repo_identity() {
+  [ -f "$REPO_GIT_CONFIG" ] || return 0
+  git config -f "$REPO_GIT_CONFIG" --get-regexp '^user\.' >/dev/null 2>&1 || return 0
+  awk '/^[[:space:]]*\[/ { skip = ($0 ~ /^[[:space:]]*\[user\][[:space:]]*$/) } !skip' \
+    "$REPO_GIT_CONFIG" > "$REPO_GIT_CONFIG.tmp" && mv "$REPO_GIT_CONFIG.tmp" "$REPO_GIT_CONFIG"
+  say "🪪 stripped [user] from DotFiles/config/git/config (identity stays machine-local:"
+  say "   install_copy.sh identity)"
+}
+
+identity_show() {
+  if [ ! -f "$IDENTITY_FILE" ]; then
+    say "   (none yet)"
+    return 0
+  fi
+  say "   default: $(git config -f "$IDENTITY_FILE" user.name) <$(git config -f "$IDENTITY_FILE" user.email)>"
+  git config -f "$IDENTITY_FILE" --get-regexp '^includeif\..*\.path$' 2>/dev/null |
+  while read -r key path; do
+    dir="${key#includeif.gitdir/i:}"; dir="${dir%.path}"
+    case "$path" in "~/"*) path="$HOME/${path#"~/"}" ;; esac
+    say "   $dir → $(git config -f "$path" user.name) <$(git config -f "$path" user.email)>"
+  done
+}
+
+# ask_value <prompt> <default> — non-empty answer into REPLY.
+ask_value() {
+  while :; do
+    if [ -n "$2" ]; then ask "$1 [$2]: "; else ask "$1: "; fi
+    [ -n "$REPLY" ] || REPLY="$2"
+    [ -n "$REPLY" ] && return 0
+    say "   a value is required"
+  done
+}
+
+# ask_email <prompt> <default> — answer containing @ into REPLY.
+ask_email() {
+  while :; do
+    ask_value "$1" "$2"
+    case "$REPLY" in *?@?*) return 0 ;; esac
+    say "   that doesn't look like an email"
+  done
+}
+
+cmd_identity() {
+  [ $# -eq 0 ] || die "identity takes no options"
+  command -v git >/dev/null 2>&1 || die "git not found"
+
+  say "🪪 Git identity for this machine"
+  say "   Stored in $IDENTITY_FILE (+ identity.d/), never in the repo."
+  identity_show
+  if [ -f "$IDENTITY_FILE" ]; then
+    ask "Replace it? [y/N]: "
+    case "$REPLY" in y|Y) ;; *) say "⏹️  identity unchanged."; return 0 ;; esac
+  fi
+
+  cur_name="$(git config -f "$IDENTITY_FILE" user.name 2>/dev/null || true)"
+  cur_email="$(git config -f "$IDENTITY_FILE" user.email 2>/dev/null || true)"
+  ask_value "Default name" "$cur_name";   name="$REPLY"
+  ask_email "Default email" "$cur_email"; email="$REPLY"
+
+  stage="$(mktemp -d "${TMPDIR:-/tmp}/git-identity.XXXXXX")"
+  mkdir -p "$stage/identity.d"
+  {
+    printf '# Machine-local git identity — written by install_copy.sh identity.\n'
+    printf '# Not part of the dotfiles repo; included from ~/.config/git/config.\n'
+  } > "$stage/identity"
+  git config -f "$stage/identity" user.name "$name"
+  git config -f "$stage/identity" user.email "$email"
+
+  while :; do
+    ask "Add a folder-specific identity (e.g. personal projects)? [y/N]: "
+    case "$REPLY" in y|Y) ;; *) break ;; esac
+    ask_value "  Folder (repos under it use this identity)" ""; dir="$REPLY"
+    case "$dir" in
+      /*|"~/"*) ;;
+      *) say "   use an absolute path or ~/..."; continue ;;
+    esac
+    dir="${dir%/}/"
+    ask_value "  Name" "$name";  d_name="$REPLY"
+    ask_email "  Email" "";       d_email="$REPLY"
+
+    label="$(basename "${dir%/}" | tr 'A-Z' 'a-z' | tr -c 'a-z0-9\n' '-')"
+    n=1; base="$label"
+    while [ -e "$stage/identity.d/$label" ]; do n=$((n + 1)); label="$base-$n"; done
+
+    git config -f "$stage/identity.d/$label" user.name "$d_name"
+    git config -f "$stage/identity.d/$label" user.email "$d_email"
+    git config -f "$stage/identity" "includeIf.gitdir/i:$dir.path" "~/.config/git/identity.d/$label"
+    say "   ✅ $dir → $d_name <$d_email>"
+  done
+
+  # Back up and replace.
+  bkroot_home="$BACKUP_ROOT/$TS/home"
+  backup_path_into "$IDENTITY_FILE" "$bkroot_home/.config/git/identity"
+  backup_path_into "$IDENTITY_DIR"  "$bkroot_home/.config/git/identity.d"
+  mkdir -p "$GIT_CFG_DIR"
+  rm -rf "$IDENTITY_DIR"
+  mv "$stage/identity.d" "$IDENTITY_DIR"
+  mv "$stage/identity" "$IDENTITY_FILE"
+  rmdir "$stage"
+
+  say ""
+  say "✅ identity saved:"
+  identity_show
+  if ! git config --global --get-all include.path 2>/dev/null | grep -qx '~/.config/git/identity'; then
+    say "ℹ️  ~/.config/git/config doesn't include it yet — run: install_copy.sh deploy"
+  fi
 }
 
 # -----------------------------------------------------------------------------
@@ -633,6 +790,7 @@ case "$verb" in
   deploy) cmd_deploy "$@" ;;
   sync)   cmd_sync "$@" ;;
   backup) cmd_backup "$@" ;;
+  identity) cmd_identity "$@" ;;
   ''|help|-h|--help) usage ;;
   *) printf '%s\n' "Unknown verb: $verb" >&2; usage; exit 1 ;;
 esac

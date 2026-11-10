@@ -243,7 +243,8 @@ own repo.
 ### New machine
 
 1. Install Xcode CLT, Homebrew, git. Clone this repo.
-2. `./install_copy.sh deploy` — zsh, configs, manifest, agent rules.
+2. `./install_copy.sh deploy` — zsh, configs, manifest, agent rules. It asks for this
+   machine's git identity, including any per-folder rules (`install_copy.sh identity`).
 3. Restore `~/Components/` (copy from backup or re-download archives listed in
    the manifest). Install **one Node first** — the MCP server needs it.
 4. `components_check` (planned) — every manifest line resolves on disk.
