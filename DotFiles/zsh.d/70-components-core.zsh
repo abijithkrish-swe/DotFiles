@@ -27,6 +27,7 @@ typeset -gA CM_DEFAULT        # tool -> default version
 typeset -gA CM_AUTOLOAD       # tool -> version activated at interactive login
 typeset -gA CM_ONPATH         # tool -> version whose bin dir is put on PATH at login (no activation)
 typeset -gA CM_DOCKER         # "tool:version" -> pinned image
+typeset -gA CM_IMAGES         # helper name -> pinned image (@image lines)
 typeset -ga CM_ERRORS
 typeset -g  CM_MTIME=""
 # Result of components_resolve
@@ -37,10 +38,10 @@ components_load() {
   emulate -L zsh
   local file="$COMPONENTS_MANIFEST" line name ver kv k val flag n=0
   local -a words errs tools
-  local -A dir root bin check homeenv versions defaults autoload onpath docker
+  local -A dir root bin check homeenv versions defaults autoload onpath docker images
 
   CM_TOOLS=() CM_DIR=() CM_ROOT=() CM_BIN=() CM_CHECK=() CM_HOMEENV=()
-  CM_VERSIONS=() CM_DEFAULT=() CM_AUTOLOAD=() CM_ONPATH=() CM_DOCKER=() CM_ERRORS=()
+  CM_VERSIONS=() CM_DEFAULT=() CM_AUTOLOAD=() CM_ONPATH=() CM_DOCKER=() CM_IMAGES=() CM_ERRORS=()
   CM_MTIME=""
 
   if [[ ! -f "$file" ]]; then
@@ -70,6 +71,14 @@ components_load() {
       done
       [[ -n "$dir[$name]" ]] || errs+=("line $n: @tool $name needs dir=")
       tools+=("$name")
+      continue
+    fi
+
+    # @image <name> <image@sha256:digest> — helper images (e.g. the docker-mode proxy forwarder)
+    if [[ "$words[1]" == "@image" ]]; then
+      if [[ -z "$words[2]" || -z "$words[3]" ]]; then errs+=("line $n: @image needs a name and an image"); continue; fi
+      [[ "$words[3]" =~ '@sha256:[0-9a-f]{64}$' ]] || errs+=("line $n: @image $words[2] must be pinned by digest (image@sha256:<64 hex>)")
+      images[$words[2]]="$words[3]"
       continue
     fi
 
@@ -112,7 +121,7 @@ components_load() {
   CM_TOOLS=("${tools[@]}")
   CM_DIR=("${(@kv)dir}") CM_ROOT=("${(@kv)root}") CM_BIN=("${(@kv)bin}")
   CM_CHECK=("${(@kv)check}") CM_HOMEENV=("${(@kv)homeenv}")
-  CM_DEFAULT=("${(@kv)defaults}") CM_AUTOLOAD=("${(@kv)autoload}") CM_ONPATH=("${(@kv)onpath}") CM_DOCKER=("${(@kv)docker}")
+  CM_DEFAULT=("${(@kv)defaults}") CM_AUTOLOAD=("${(@kv)autoload}") CM_ONPATH=("${(@kv)onpath}") CM_DOCKER=("${(@kv)docker}") CM_IMAGES=("${(@kv)images}")
   for name in "${tools[@]}"; do
     CM_VERSIONS[$name]="${(j: :)${(on)${=versions[$name]}}}"   # numeric-aware sort
   done

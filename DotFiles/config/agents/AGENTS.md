@@ -13,7 +13,9 @@ These rules apply to every coding agent. They are short on purpose.
    `curl … | sh`. If a version is missing, call `request_component` and tell the user.
 3. **Run builds and tests with toolshelf `run`** (macOS sandbox: project-only
    writes, proxy-only network, no secrets). Pass the project folder as `cwd`.
-   Untrusted code goes in Docker mode once it exists. Until then, ask first.
+   **Untrusted code** (unknown repos, downloaded scripts, generated code you
+   haven't reviewed) goes through `run` with `mode: "docker"`, one tool per
+   run. The network is off unless you pass `network: "proxy"`.
    Keep output small:
    - use quiet flags (`mvn -q`, `gradle -q`, `npm --silent`, `cargo -q`) unless
      you're debugging;

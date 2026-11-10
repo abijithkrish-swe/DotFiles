@@ -7,7 +7,7 @@ anything on their own.
 Read this when you: set up a new machine, add/update a component, or wire up a
 new coding agent.
 
-> Status: **steps 1–4 done** for Claude Code: manifest-driven MCP + zsh, sandboxed `run`, rules + guard hook + permissions. Next: step 5 (Docker mode); Codex later. See [Implementation order](#implementation-order).
+> Status: **steps 1–5 done** for Claude Code: manifest-driven MCP + zsh, sandboxed and Docker `run`, rules + guard hook + permissions. Left: step 6 cleanup; Codex later. See [Implementation order](#implementation-order).
 
 ---
 
@@ -201,13 +201,42 @@ Verified on this Mac:
 **Known limit:** Node's built-in `fetch()` ignores proxy variables, so it can't
 reach the internet from a run (npm itself works).
 
-### `run` — docker mode (untrusted code)
+### `run` — docker mode (untrusted code) ✅
 
-- Image = manifest `docker=` digest for the requested versions. No digest → refuse.
-- `docker run --rm --network none -v <project>:/work -w /work …` by default;
-  `network: "proxy"` opt-in adds proxy env + mounted CA cert.
-- No host home, no SSH agent, no Docker socket mounted.
-- Requires Colima running; if not, return "run `costart`" — don't start it.
+Use `run(command, cwd, tools: {<one tool>}, mode: "docker", network?: "none" | "proxy")`
+(`toolshelf-mcp/src/docker.ts`).
+
+- **Image:** the one requested tool's `docker=` entry from the manifest. It must be
+  pinned by digest, otherwise the run is refused. Exactly one tool per run, because a
+  run uses one image. Build-tool images include their JDK: Maven 3.9.12 and
+  Gradle 8.14.4 use 17, Gradle 9.3.1 uses 25. JDK 26.0.2 and Maven 4 have no
+  image, and the error says which versions do. Images are pulled on first use
+  (the pinned digest only), quietly.
+- **Mounts:** the project at `/work`, read-write; files written there are owned by you.
+  Nothing else from the Mac is visible: no `/Users`, no Docker socket, no SSH agent.
+- **Container limits:** your uid, `--cap-drop ALL`, `no-new-privileges`, 2 CPUs,
+  4 GB memory, 1024 processes. `/tmp` is a fresh 2 GB tmpfs that serves as `HOME`.
+  Tool homes point there too (`GRADLE_USER_HOME`, `CARGO_HOME`, `GOPATH`,
+  `-Duser.home`), because images keep them in root-owned folders.
+- **No caches across runs.** Each run starts empty, so nothing planted by one
+  untrusted run survives to the next. Dependencies download again each time.
+- **`network: "none"`** is the default: no network at all.
+- **`network: "proxy"`** gives enforced proxy-only access. Each run gets its own
+  `--internal` Docker network, which has no route out. Its only exit is a forwarder
+  container (`@image proxy-forwarder`, `alpine/socat`, pinned) on both that network
+  and the bridge, which passes port 3128 to the Mac's proxy at `host.lima.internal`.
+  - Proxy settings are passed in for curl, npm, cargo and go; for Java through
+    `MAVEN_OPTS`/`GRADLE_OPTS`; and for Maven through a generated `settings.xml`
+    mounted at `/opt/toolshelf/`.
+  - Verified: npm, Maven, cargo and go builds fetch their dependencies. Direct
+    internet fails (no DNS), and a raw connection to the Mac's proxy port fails
+    (`ENETUNREACH`).
+- **Timeout:** `docker kill` on top of killing the process group. Containers,
+  the network and the forwarder are always removed afterwards.
+- **No blocklist in docker mode.** Commands can't affect the host's tools,
+  so the blocklist, which protects them, applies to sandbox mode only.
+- **Colima must already be running.** If it isn't, the error says to run `costart`;
+  toolshelf never starts it.
 
 ## 5. Agent guardrails
 
@@ -392,5 +421,5 @@ into Claude configs. The sandbox profile is generated per run by toolshelf-mcp
 - [x] 2. zsh `70-components-core.zsh` reads the manifest (use_*, toolup, completion, `components_check`); `79-defaults.zsh` autoloads from `autoload` flags
 - [x] 3. `run` (sandbox mode), `request_component` (+ `components_requests` in zsh), `resolve_toolsrc`; blocklist in `DotFiles/config/agents/`
 - [x] 4. `AGENTS.md`, `guard.sh`, Claude Code settings in both configs (`install_copy.sh agents`, offered by deploy); toolshelf registered in both. Codex: later
-- [ ] 5. `run` docker mode with pinned digests
+- [x] 5. `run` docker mode: pinned images in the manifest, per-run container, network none or enforced proxy (internal network + forwarder)
 - [ ] 6. ~~`components_check`~~ (done in step 2); ~~fix MCP README/config; run MCP from installed copy~~ (done); colima_status single zsh call
