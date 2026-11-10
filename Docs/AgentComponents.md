@@ -7,7 +7,7 @@ anything on their own.
 Read this when you: set up a new machine, add/update a component, or wire up a
 new coding agent.
 
-> Status: **steps 1–3 done**: manifest-driven MCP + zsh, and sandboxed `run`. Next: step 4 (agent guardrails). See [Implementation order](#implementation-order).
+> Status: **steps 1–4 done** for Claude Code: manifest-driven MCP + zsh, sandboxed `run`, rules + guard hook + permissions. Next: step 5 (Docker mode); Codex later. See [Implementation order](#implementation-order).
 
 ---
 
@@ -211,47 +211,67 @@ reach the internet from a run (npm itself works).
 
 ## 5. Agent guardrails
 
-### Rules file (all agents)
+All sources are in `DotFiles/config/agents/`, deployed to `~/.config/agents/`.
+`install_copy.sh agents` (which `deploy` offers) merges them into every Claude
+Code config on the machine.
 
-**Source:** `DotFiles/config/agents/AGENTS.md`
-Deployed/symlinked to every agent's global instructions location:
+### Rules file (all agents) ✅
 
-| Agent | Location |
+**Source:** `DotFiles/config/agents/AGENTS.md`. It is six short rules; long rule files get ignored:
+1. tools only via toolshelf;
+2. never install or upgrade, and use `request_component` instead;
+3. builds and tests via `run`;
+4. never change build-tool or toolchain versions;
+5. ask before adding dependencies;
+6. never read secrets.
+
+| Agent | How it gets the rules | Status |
+|---|---|---|
+| Claude Code (default, `~/.claude`) | `~/.claude/CLAUDE.md` imports `@~/.config/agents/AGENTS.md` | ✅ |
+| Claude Code (personal, `myclaude` → `~/.config/claude-personal`) | `CLAUDE.md` in that dir, same import | ✅ |
+| Codex | `~/.codex/AGENTS.md` | later |
+| Copilot / others | their global instructions file | not planned for now |
+
+### Claude Code ✅
+
+`myclaude` sets `CLAUDE_CONFIG_DIR=~/.config/claude-personal`. Claude Code then
+reads settings, hooks, permissions, `CLAUDE.md` **and MCP registrations** from
+that dir instead of `~/.claude`. Everything below is therefore applied to both
+configs:
+- `install_copy.sh agents` covers settings, hooks, permissions and `CLAUDE.md`.
+- toolshelf's `install.sh --register` covers the MCP registration.
+
+`DotFiles/config/agents/claude-settings.json` is merged into each `settings.json`:
+- permission lists are unioned;
+- our hook replaces an older copy of itself;
+- everything else in the file is kept, in order;
+- the file is backed up to `Backup/<ts>/home/` first, and re-running is a no-op.
+
+| Setting | Value |
 |---|---|
-| Claude Code | `~/.claude/CLAUDE.md` (import or symlink) |
-| Codex | `~/.codex/AGENTS.md` |
-| Copilot (VS Code) | user-level instructions file / per-repo `.github/copilot-instructions.md` |
-| Others | Whatever "global instructions" path they support |
+| `permissions.allow` | read-only toolshelf tools (`list_components`, `get_component_versions`, `get_defaults`, `get_component_env`, `resolve_toolsrc`, `colima_status`) and `request_component`, which only records a request |
+| `permissions.ask` | `mcp__toolshelf__run` |
+| `permissions.deny` | a backstop to the hook for the most common install commands: sudo, Homebrew changes, global npm, pip, rustup, cargo install, sdkman, nvm, softwareupdate |
+| `hooks.PreToolUse` (matcher `Bash`) | `$HOME/.config/agents/guard.sh` |
 
-Core rules (keep short — long rule files get ignored):
+**`guard.sh`** is a Perl script with no dependencies. It reads the hook JSON, matches
+`tool_input.command` against `blocklist.txt` (the same list `run` uses), and exits 2
+with the reason. Claude sees the reason and is pointed at `request_component`.
+- **Heredocs:** heredoc bodies are file content, so they are not matched. Writing docs
+  that mention blocked commands is fine. A heredoc fed to a shell or interpreter
+  (`bash <<EOF`, `cat <<EOF | sh`) is matched as code.
+- **Fails closed:** a missing blocklist blocks every Bash command.
+- **Verified:** 28 cases in total.
+  - Blocked: install, upgrade and fetch-and-run patterns, including ones after `cd x &&`,
+    in an executed heredoc, or after a data heredoc.
+  - Passed: normal builds, `.venv/bin/pip`, `grep "sudo"`, `GOTOOLCHAIN=local`, and doc heredocs.
+- **Residual false positives:** blocked words inside quoted arguments, for example a
+  commit message that mentions one. Rephrase, or write the text to a file first.
 
-```markdown
-- Tools come ONLY from the `toolshelf` MCP. Use `get_component_env` or `run`.
-- Never install, upgrade, or remove tools, runtimes, or global packages
-  (brew, sdkman, nvm, asdf, pyenv, npm -g, pip outside a venv, curl|sh).
-  Need something missing? Call `request_component` and tell the user.
-- Run builds/tests via `run` (sandbox). Run untrusted code via `run` mode=docker.
-- Do not change Gradle/Maven wrapper versions or Docker image tags/digests.
-- Project dependencies (npm/maven/pip into a project venv) need user approval.
-```
+Not used: Claude Code's built-in `/sandbox`. Builds go through toolshelf `run`,
+which has its own sandbox. Revisit if Claude's direct Bash calls need confining too.
 
-### Claude Code (`~/.claude/settings.json`)
-
-- `permissions.deny`: `brew install`, `brew upgrade`, `npm install -g`,
-  `pip install` (outside venv), `curl … | sh`, `sdk install`, `nvm install`,
-  `asdf install`, `softwareupdate`
-- `permissions.ask`: `npm install`, `mvn`/`gradle` wrapper upgrades,
-  `mcp__toolshelf__run`, `mcp__toolshelf__request_component`
-- `permissions.allow`: the read-only `mcp__toolshelf__*` tools
-- **PreToolUse hook** (`matcher: Bash`) → `DotFiles/config/agents/guard.sh`.
-  Same blocklist as the MCP `run` tool (single file: `blocklist.txt`). Exit
-  code 2 blocks with a reason. Catches `cd x && brew install`, `python -m pip`,
-  `npx -y <pkg>`, etc.
-- **Sandbox** (`/sandbox`): enable; restrict writes to the project, network
-  to the proxy. Check exact settings keys against current Claude Code docs
-  when implementing.
-
-### Codex (`~/.codex/config.toml`)
+### Codex (`~/.codex/config.toml`): later
 
 ```toml
 approval_policy = "on-request"
@@ -260,6 +280,8 @@ sandbox_mode    = "workspace-write"
 command = "/Users/<you>/Components/Node/<pinned>/bin/node"
 args    = ["/Users/<you>/Components/toolshelf-mcp/dist/index.js"]
 ```
+Snippet: `toolshelf-mcp/config/codex.toml`. Rules: link `~/.codex/AGENTS.md` to
+`~/.config/agents/AGENTS.md`.
 
 ### Copilot / others
 
@@ -267,20 +289,19 @@ Usually rules-only plus whatever approval setting the client offers for
 terminal commands (keep auto-approve **off**). Treat them as the least trusted
 agents.
 
-## 6. Repo layout (planned)
+## 6. Repo layout
 
 ```
 DotFiles/config/components/components.conf     # the manifest
 DotFiles/config/agents/AGENTS.md               # shared rules
-DotFiles/config/agents/blocklist.txt           # shared by hook + MCP run
+DotFiles/config/agents/blocklist.txt           # shared by guard.sh + MCP run
 DotFiles/config/agents/guard.sh                # Claude Code PreToolUse hook
-DotFiles/config/agents/claude-settings.json    # merged into ~/.claude/settings.json
-DotFiles/config/agents/codex-config.toml       # merged into ~/.codex/config.toml
-DotFiles/config/agents/sandbox.sb.tmpl         # sandbox-exec profile template
+DotFiles/config/agents/claude-settings.json    # merged into each Claude config's settings.json
 ```
 
-`install_copy.sh deploy` places/merges these. MCP server source stays in its
-own repo.
+`deploy` copies these to `~/.config/agents/`; `install_copy.sh agents` merges
+into Claude configs. The sandbox profile is generated per run by toolshelf-mcp
+(no template file). MCP server source stays in its own repo.
 
 ## 7. Runbooks
 
@@ -370,6 +391,6 @@ own repo.
 - [x] 1. `components.conf` + Node parser; MCP read tools + `get_component_env` use it; MCP registered from project path with pinned node
 - [x] 2. zsh `70-components-core.zsh` reads the manifest (use_*, toolup, completion, `components_check`); `79-defaults.zsh` autoloads from `autoload` flags
 - [x] 3. `run` (sandbox mode), `request_component` (+ `components_requests` in zsh), `resolve_toolsrc`; blocklist in `DotFiles/config/agents/`
-- [ ] 4. `AGENTS.md`, `blocklist.txt`, `guard.sh`, Claude Code + Codex settings; deploy via installer
+- [x] 4. `AGENTS.md`, `guard.sh`, Claude Code settings in both configs (`install_copy.sh agents`, offered by deploy); toolshelf registered in both. Codex: later
 - [ ] 5. `run` docker mode with pinned digests
 - [ ] 6. ~~`components_check`~~ (done in step 2); ~~fix MCP README/config; run MCP from installed copy~~ (done); colima_status single zsh call

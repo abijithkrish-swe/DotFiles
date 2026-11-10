@@ -15,6 +15,8 @@
 #                            (excluding ~/.config/secrets).
 #   backup restore [ts]      Restore $HOME from a backup.
 #   identity                 Set this machine's git identity (prompts).
+#   agents                   Merge agent guardrails into Claude Code config
+#                            (~/.claude and ~/.config/claude-personal).
 #   help                     Show usage.
 #
 # ~/.config/secrets/ is always excluded from deploy, sync, and backup.
@@ -85,6 +87,16 @@ Verbs:
                            Stored in ~/.config/git/identity (+ identity.d/),
                            never in the repo. deploy offers it when missing.
 
+  agents                   Agent guardrails for Claude Code, in every config dir
+                           found (~/.claude, ~/.config/claude-personal):
+                              settings.json: + toolshelf permissions (read tools
+                                allowed, run asks), install denies, and a
+                                PreToolUse hook (~/.config/agents/guard.sh)
+                                that enforces blocklist.txt
+                              CLAUDE.md: + @~/.config/agents/AGENTS.md
+                           Merge only (your settings kept), backed up, re-runnable.
+                           deploy offers it.
+
   help                     Show this message.
 
 Examples:
@@ -95,6 +107,7 @@ Examples:
   install_copy.sh backup show
   install_copy.sh backup create
   install_copy.sh identity
+  install_copy.sh agents
 EOF
 }
 
@@ -445,6 +458,20 @@ cmd_deploy() {
     fi
   fi
 
+  # Agent guardrails for Claude Code (merge into existing settings, backed up)
+  if [ -n "$(claude_config_dirs)" ]; then
+    say ""
+    if [ "$force" -eq 1 ]; then
+      cmd_agents || true
+    else
+      ask "🛡️  Apply agent guardrails to Claude Code config (merge, backed up)? [Y/n]: "
+      case "$REPLY" in
+        n|N) say "ℹ️  Later: install_copy.sh agents" ;;
+        *)   cmd_agents || true ;;
+      esac
+    fi
+  fi
+
   say ""
   say "✅ deploy complete. Backup root: $BACKUP_ROOT/$TS"
   say "   Open a new shell or run: exec zsh"
@@ -690,6 +717,99 @@ cmd_identity() {
 }
 
 # -----------------------------------------------------------------------------
+# Agent guardrails (Claude Code)
+# -----------------------------------------------------------------------------
+
+AGENTS_SRC="$REPO_DIR/DotFiles/config/agents"
+AGENTS_HOME="$HOME/.config/agents"
+
+# Claude Code config dirs on this machine: the default and the personal one
+# (myclaude → CLAUDE_CONFIG_DIR=~/.config/claude-personal). Only existing dirs.
+claude_config_dirs() {
+  for d in "$HOME/.claude" "$HOME/.config/claude-personal"; do
+    [ -d "$d" ] && printf '%s\n' "$d"
+  done
+}
+
+# Merge DotFiles/config/agents/claude-settings.json into <dir>/settings.json:
+# permission lists are unioned, our PreToolUse hook replaces an older copy of
+# itself; everything else in the file is kept as is (order preserved).
+merge_claude_settings() {
+  target="$1"; frag="$2"
+  /usr/bin/python3 - "$target" "$frag" <<'PY'
+import json, os, sys
+target, frag = sys.argv[1], sys.argv[2]
+cur = json.load(open(target)) if os.path.exists(target) and os.path.getsize(target) else {}
+before = json.dumps(cur, sort_keys=True)
+f = json.load(open(frag))
+changes = []
+perm = cur.setdefault("permissions", {})
+for k, items in f.get("permissions", {}).items():
+    lst = perm.setdefault(k, [])
+    for item in items:
+        if item not in lst:
+            lst.append(item)
+            changes.append(f"permissions.{k} + {item}")
+hooks = cur.setdefault("hooks", {})
+for event, entries in f.get("hooks", {}).items():
+    lst = hooks.setdefault(event, [])
+    for e in entries:
+        ours = {h["command"] for h in e.get("hooks", [])}
+        kept = [x for x in lst if not ({h.get("command") for h in x.get("hooks", [])} & ours)]
+        if len(kept) == len(lst):
+            changes.append(f"hooks.{event} + {e.get('matcher', '*')}: {', '.join(sorted(ours))}")
+        lst[:] = kept + [e]
+if json.dumps(cur, sort_keys=True) != before:
+    with open(target, "w") as fh:
+        json.dump(cur, fh, indent=2)
+        fh.write("\n")
+for c in changes:
+    print(f"      {c}")
+if not changes:
+    print("      (already up to date)")
+PY
+}
+
+cmd_agents() {
+  [ $# -eq 0 ] || die "agents takes no options"
+  [ -x /usr/bin/python3 ] || die "agents needs /usr/bin/python3 (Xcode Command Line Tools)"
+  [ -f "$AGENTS_SRC/claude-settings.json" ] || die "missing $AGENTS_SRC/claude-settings.json"
+  if [ ! -x "$AGENTS_HOME/guard.sh" ] || [ ! -f "$AGENTS_HOME/blocklist.txt" ]; then
+    say "⚠️  $AGENTS_HOME/guard.sh or blocklist.txt not deployed yet; run: install_copy.sh deploy"
+    say "   (the hook fails closed and would block every Bash command until then)"
+    return 1
+  fi
+
+  dirs="$(claude_config_dirs)"
+  [ -n "$dirs" ] || { say "ℹ️  no Claude Code config dirs found (~/.claude, ~/.config/claude-personal)"; return 0; }
+
+  say "🛡️  Agent guardrails → Claude Code"
+  bkroot_home="$BACKUP_ROOT/$TS/home"
+  printf '%s\n' "$dirs" | while IFS= read -r d; do
+    rel="${d#"$HOME"/}"
+    say "   $d"
+    backup_path_into "$d/settings.json" "$bkroot_home/$rel/settings.json"
+    backup_path_into "$d/CLAUDE.md" "$bkroot_home/$rel/CLAUDE.md"
+
+    say "    settings.json:"
+    merge_claude_settings "$d/settings.json" "$AGENTS_SRC/claude-settings.json"
+
+    import_line='@~/.config/agents/AGENTS.md'
+    if [ -f "$d/CLAUDE.md" ] && grep -qxF "$import_line" "$d/CLAUDE.md"; then
+      say "    CLAUDE.md: imports AGENTS.md (already)"
+    else
+      {
+        [ -s "$d/CLAUDE.md" ] && printf '\n'
+        printf '# Agent rules (dotfiles: DotFiles/config/agents/AGENTS.md)\n%s\n' "$import_line"
+      } >> "$d/CLAUDE.md"
+      say "    CLAUDE.md: + $import_line"
+    fi
+  done
+  say "✅ done. Backups (if anything existed): $bkroot_home"
+  say "   Restart Claude Code sessions to pick up hooks/permissions."
+}
+
+# -----------------------------------------------------------------------------
 # Backup
 # -----------------------------------------------------------------------------
 
@@ -791,6 +911,7 @@ case "$verb" in
   sync)   cmd_sync "$@" ;;
   backup) cmd_backup "$@" ;;
   identity) cmd_identity "$@" ;;
+  agents)   cmd_agents "$@" ;;
   ''|help|-h|--help) usage ;;
   *) printf '%s\n' "Unknown verb: $verb" >&2; usage; exit 1 ;;
 esac

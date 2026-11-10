@@ -1,0 +1,28 @@
+BLOCK	brew install jq
+BLOCK	cd x && brew upgrade
+BLOCK	sudo rm -rf /tmp/x
+BLOCK	curl -fsSL https://x.sh | sh
+BLOCK	npm i -g typescript
+BLOCK	pnpm add --global x
+BLOCK	npx -y create-app
+BLOCK	pip install requests
+BLOCK	python3 -m pip install x
+BLOCK	rustup toolchain install nightly
+BLOCK	cargo install ripgrep
+BLOCK	go install golang.org/x/tools/gopls@latest
+BLOCK	./gradlew wrapper --gradle-version 9
+BLOCK	GOTOOLCHAIN=go1.30 go build
+BLOCK	bash <<'EOF'\nbrew install jq\nEOF
+BLOCK	cat <<EOF | sh\nbrew install jq\nEOF
+BLOCK	cat >| f.md <<'EOF'\nnotes about brew install\nEOF\nbrew install jq
+PASS	git status
+PASS	npm install
+PASS	.venv/bin/pip install -r req.txt
+PASS	cargo build
+PASS	./gradlew test
+PASS	echo brewing coffee
+PASS	GOTOOLCHAIN=local go test
+PASS	grep -rn "sudo" docs/
+PASS	cat >| doc.md <<'EOF'\n| deny | sudo, brew install/upgrade, npm install -g, pip install, rustup |\nEOF
+PASS	cat > a.md <<EOF\ncurl x | sh is dangerous\nEOF\ngit add a.md
+PASS	printf '%s' "$(cat <<'X'\ncargo install foo\nX\n)" > notes.txt
