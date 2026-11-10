@@ -7,7 +7,7 @@
 
 The user runs a **modular Zsh** setup. Configuration lives in `~/.zsh.d/*.zsh` (numbered files loaded in order). The repo source is at `~/Projects/Personal/zshrc/configured/`.
 
-Layout: `DotFiles/zsh.d/` (modules), `DotFiles/config/` (XDG configs), `Docs/` (UserGuide, Components, Advanced), `install_copy.sh` (installer).
+Layout: `DotFiles/zsh.d/` (modules), `DotFiles/config/` (XDG configs), `Docs/` (UserGuide, Components, Advanced, AgentComponents — agent/MCP design & runbooks), `install_copy.sh` (installer).
 
 ## Dev Tool Management (Component System)
 
@@ -147,7 +147,7 @@ Verb-based; no verb prints usage and changes nothing.
 ## When Creating Projects
 
 - If the project needs specific tool versions, create a `.toolsrc` file.
-- Java projects: user has JDK 11/17/21/25, Maven, Gradle, Ant available.
+- Java projects: user has JDK 11/17/25/26, Maven, Gradle, Ant available (no JDK 21; plan is 17 → 25).
 - Python projects: use `use_python`; user manages venvs directly (no wrapper).
 - Node projects: prefer `use_node` (component-based); NVM is present but disabled.
 - Proxy: corporate zero-trust proxy is active by default (`http://127.0.0.1:3128`).
