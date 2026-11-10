@@ -56,6 +56,9 @@ Project requirements
 Where things go
 ---------------
   logs            ~/.local/state/toolshelf/runs/<id>.log   (full output)
+  blocked         ~/.local/state/toolshelf/blocked.jsonl   (guard hook + run)
+  review          toolshelf_report [days]   runs, common commands, failures,
+                  sandbox walls, file edits via run, blocked attempts
   sandbox caches  ~/.cache/toolshelf/{m2,gradle,npm,cargo,go,pip}  (safe to delete)
   docker images   components_images   /   components_images prune
 

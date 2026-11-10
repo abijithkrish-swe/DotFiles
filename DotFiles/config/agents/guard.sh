@@ -12,6 +12,8 @@
 #
 # Blocklist: $TOOLSHELF_BLOCKLIST or ~/.config/agents/blocklist.txt
 # Fails closed: a missing or unreadable blocklist blocks every Bash command.
+# Each block is logged to ~/.local/state/toolshelf/blocked.jsonl
+# ($TOOLSHELF_STATE overrides); review with toolshelf_report.
 # Deployed to ~/.config/agents/guard.sh. Design: Docs/AgentComponents.md
 # -----------------------------------------------------------------------------
 use strict;
@@ -24,8 +26,33 @@ my $blocklist = $ENV{TOOLSHELF_BLOCKLIST}
   || ($ENV{XDG_CONFIG_HOME} || "$ENV{HOME}/.config") . "/agents/blocklist.txt";
 
 my $input = do { local $/; <STDIN> } // '';
-my $cmd = eval { JSON::PP->new->utf8->decode($input)->{tool_input}{command} } // '';
+my $event = eval { JSON::PP->new->utf8->decode($input) } // {};
+my $cmd = eval { $event->{tool_input}{command} } // '';
 exit 0 if $cmd eq '';
+
+# One JSON line per blocked command, for toolshelf_report. Best effort: a
+# logging failure never changes the decision.
+sub record_block {
+  my ($reason, $match) = @_;
+  eval {
+    my $dir = $ENV{TOOLSHELF_STATE}
+      || ($ENV{XDG_STATE_HOME} || "$ENV{HOME}/.local/state") . "/toolshelf";
+    mkdir $dir unless -d $dir;
+    my @t = gmtime;
+    my $rec = {
+      ts      => sprintf('%04d-%02d-%02dT%02d:%02d:%02dZ', $t[5] + 1900, $t[4] + 1, @t[3, 2, 1, 0]),
+      source  => 'guard',
+      reason  => $reason,
+      match   => $match,
+      command => substr($cmd, 0, 2000),
+      cwd     => $event->{cwd} // '',
+      session => $event->{session_id} // '',
+    };
+    open(my $log, '>>', "$dir/blocked.jsonl") or die;
+    print $log JSON::PP->new->utf8->canonical->encode($rec), "\n";
+    close $log;
+  };
+}
 
 # Drop heredoc bodies that are data, keep ones that are executed.
 my $shell_rx = qr/(?:^|[\s;&|(`])(?:sh|bash|zsh|python3?|perl|ruby|node|eval|source|\.)(?:\s|$)|\|\s*(?:sudo\s+)?(?:sh|bash|zsh)\b/;
@@ -59,6 +86,7 @@ while (my $line = <$fh>) {
   $reason //= 'blocked by policy';
   my $rx = eval { qr/$re/ } or next;
   if ($code =~ $rx) {
+    record_block($reason, $&);
     print STDERR "Blocked by toolshelf guard: $reason.\n"
       . "Matched: $&\n"
       . "If it is really needed, ask the user to run it themselves. For a missing "

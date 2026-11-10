@@ -37,7 +37,7 @@ Each tool also has:
 - `<tool>_list`: approved versions with default/autoload flags, plus broken or unapproved folders.
 - `<tool>_clear`: deactivate.
 
-Shared commands: `components_status` (what's active; alias `status_components`), `components_check` (health of the whole manifest), `components_requests [clear]` (versions agents asked for), `components_images [prune]` (pinned Docker images: pulled or not, sizes; `prune` removes only retired pins, never your own images), and `components_reload`. Reload is rarely needed: edits to the manifest are picked up automatically.
+Shared commands: `components_status` (what's active; alias `status_components`), `components_check` (health of the whole manifest), `components_requests [clear]` (versions agents asked for), `toolshelf_report [days]` (what agents ran via toolshelf and what the guard hook or `run` blocked; read-only), `components_images [prune]` (pinned Docker images: pulled or not, sizes; `prune` removes only retired pins, never your own images), and `components_reload`. Reload is rarely needed: edits to the manifest are picked up automatically.
 
 Redis/MySQL extras: `redis_start`/`redis_stop` (aliases `rstart`/`rstop`/`rcli`); `mysql_start`/`mysql_stop`/`mysql_restart`/`mysql_cli`/`mysql_current`.
 

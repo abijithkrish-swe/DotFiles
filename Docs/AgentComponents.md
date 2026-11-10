@@ -153,8 +153,9 @@ Order of checks, then the run (`toolshelf-mcp/src/sandbox.ts`):
 
 1. **Blocklist:** `~/.config/agents/blocklist.txt` (source:
    `DotFiles/config/agents/blocklist.txt`), `<regex> ## <reason>` per line. A
-   match returns the reason and nothing runs. A missing or invalid list refuses
-   every run (fail closed).
+   match returns the reason and nothing runs, and is logged to
+   `$XDG_STATE_HOME/toolshelf/blocked.jsonl` (the guard hook logs there too).
+   A missing or invalid list refuses every run (fail closed).
 2. **Project dir:** must be a real directory at least two levels under `$HOME`, and
    it or a parent (no higher than two levels below `$HOME`) must contain a project
    marker: `.git`, `.toolsrc`, `package.json`, `pom.xml`, `build.gradle*`,
@@ -286,6 +287,10 @@ configs:
 **`guard.sh`** is a Perl script with no dependencies. It reads the hook JSON, matches
 `tool_input.command` against `blocklist.txt` (the same list `run` uses), and exits 2
 with the reason. Claude sees the reason and is pointed at `request_component`.
+- **Logging:** each block appends one JSON line (time, source, reason, match,
+  command, cwd, session) to `~/.local/state/toolshelf/blocked.jsonl`, shared with
+  `run`. Best effort: a logging failure never changes the decision. Review with
+  `toolshelf_report`.
 - **Heredocs:** heredoc bodies are file content, so they are not matched. Writing docs
   that mention blocked commands is fine. A heredoc fed to a shell or interpreter
   (`bash <<EOF`, `cat <<EOF | sh`) is matched as code.
@@ -417,6 +422,10 @@ arguments. Cheat sheet: `devhelp toolshelf`.
    - The reply has the exit code and the last 8 KB of output.
    - The full log is in `~/.local/state/toolshelf/runs/<id>.log`.
    - Requests for missing versions show up in `components_requests`.
+6. **Review now and then:** `toolshelf_report [days]` summarises runs (by
+   project, exit code, the most common commands, slowest, failed, ones that hit
+   the sandbox or edited files) and every blocked attempt with its reason. Use
+   it to tune `blocklist.txt` and Claude's `permissions.allow`.
 
 Typical arguments:
 

@@ -265,6 +265,132 @@ components_requests() {
   echo "Approve: install it, add it to the manifest (devhelp components). Then: components_requests clear"
 }
 
+# toolshelf_report [days] — what agents ran and what was stopped, from
+# toolshelf's run logs (runs/*.log) and blocked.jsonl (written by the guard
+# hook and by `run`). Read-only. Default: everything; `toolshelf_report 7` =
+# the last week. Use it to tune blocklist.txt and Claude's permissions.allow.
+toolshelf_report() {
+  emulate -L zsh
+  local dir="${TOOLSHELF_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/toolshelf}"
+  local days="${1:-0}"
+  [[ "$days" == <-> ]] || { echo "usage: toolshelf_report [days]"; return 1; }
+  [[ -d "$dir" ]] || { echo "No toolshelf state yet ($dir)."; return 0; }
+  /usr/bin/perl -CSD -MJSON::PP -MPOSIX=strftime - "$dir" "$days" <<'PERL'
+use strict; use warnings;
+my ($dir, $days) = @ARGV;
+my $since = $days ? strftime('%Y%m%d-%H%M%S', localtime(time - $days * 86400)) : '';
+my $since_iso = $days ? strftime('%Y-%m-%dT%H:%M:%SZ', gmtime(time - $days * 86400)) : '';
+my $home = $ENV{HOME};
+sub short { my ($s, $n) = @_; $s =~ s/\Q$home\E/~/g; $s =~ s/\s*\n\s*/ ⏎ /g; length($s) > $n ? substr($s, 0, $n - 1) . '…' : $s }
+sub local_ts {   # 2026-11-10T22:50:46Z -> local "2026-11-11 04:20"
+  my @p = $_[0] =~ /^(\d+)-(\d+)-(\d+)T(\d+):(\d+):(\d+)/ or return $_[0];
+  require Time::Local;
+  strftime('%Y-%m-%d %H:%M', localtime(Time::Local::timegm($p[5], $p[4], $p[3], $p[2], $p[1] - 1, $p[0])));
+}
+sub top { my ($h, $n) = @_; (sort { $h->{$b} <=> $h->{$a} || $a cmp $b } keys %$h)[0 .. ($n < keys %$h ? $n : keys %$h) - 1] }
+
+# --- runs --------------------------------------------------------------------
+my (@runs, %mode, %exit, %proj, %pat);
+my %multi = map { $_ => 1 } qw(git npm npx pnpm yarn cargo go docker kubectl pip pip3 uv gradle ./gradlew mvn ./mvnw);
+for my $f (sort glob("$dir/runs/*.log")) {
+  my ($id) = $f =~ m{/([^/]+)\.log$};
+  next if $since && $id lt $since;
+  open(my $fh, '<', $f) or next;
+  my %r = (id => $id, cmd => '', denied => 0);
+  my $in_cmd = 0;
+  while (my $l = <$fh>) {
+    chomp $l;
+    if ($. == 1) { $r{mode} = $l =~ /\((\w+)/ ? $1 : 'sandbox'; next }
+    if ($l =~ /^# cwd: (.*?)(?: → .*)?$/) { $r{cwd} = $1; next }
+    if ($l =~ /^# command: (.*)$/) { $r{cmd} = $1; $in_cmd = 1; next }
+    if ($in_cmd) { if ($l eq '') { $in_cmd = 0 } else { $r{cmd} .= "\n$l" } next }
+    if ($l =~ /^# exit: (\S+)( \(timed out\))? after (\d+) ms/) { @r{qw(exit timeout ms)} = ($1, $2 ? 1 : 0, $3) }
+    $r{denied}++ if $l =~ /operation not permitted/i;
+  }
+  $r{exit} //= 'unfinished'; $r{ms} //= 0;
+  push @runs, \%r;
+  $mode{$r{mode}}++;
+  $exit{$r{timeout} ? 'timeout' : $r{exit}}++;
+  $proj{$r{cwd} // '?'}++;
+  (my $code = $r{cmd}) =~ s/<<-?\s*(['"]?)(\w+)\1([^\n]*)\n.*?(?:\n\s*\2\s*(?=\n|$)|$)/$3/sg;  # heredoc bodies
+  $code =~ s/'[^']*'/''/g; $code =~ s/"(?:\\.|[^"\\])*"/""/g;                          # quoted text
+  for my $seg (split /\s*(?:&&|\|\||[;|\n]|\$\()\s*/, $code) {
+    $seg =~ s/^[\s({!]*(?:(?:if|then|else|elif|do|while|until|time)\s+)*//;   # (  {  !  keywords
+    $seg =~ s/^(?:\w+=\S*\s+)*//;               # VAR=value prefixes
+    my @w = split ' ', $seg or next;
+    next if $w[0] =~ /^(for|done|fi|esac|case|in|\$|[)}\]])/;
+    my $p = $w[0] =~ m{^\.?/} ? $w[0] : ($w[0] =~ m{([^/]+)$})[0];
+    next if $p =~ /^(cd|echo|true|false|exit|\[\[?)$/;
+    if ($p =~ /^python[\d.]*$/ && ($w[1] // '') eq '-m') { $p .= " -m " . ($w[2] // '') }
+    elsif ($multi{$p} || $multi{$w[0]}) { my ($sub) = grep { !/^-/ } @w[1 .. $#w]; $p .= " $sub" if $sub }
+    elsif ($p eq 'sed' && grep { /^-i/ } @w) { $p = 'sed -i' }
+    $pat{$p}++;
+  }
+}
+
+my $period = $days ? "last $days day" . ($days == 1 ? '' : 's') : 'all time';
+print "toolshelf report ($period)\n", '=' x 40, "\n\n";
+if (@runs) {
+  my $fail = grep { $_->{exit} ne '0' } @runs;
+  printf "Runs: %d  (%s)   failed or unfinished: %d\n", scalar @runs,
+    join(', ', map { "$_ $mode{$_}" } sort keys %mode), $fail;
+  print "  exit codes: ", join(', ', map { "$_ ×$exit{$_}" } top(\%exit, 10)), "\n";
+  print "  projects:\n";
+  printf "    %4d  %s\n", $proj{$_}, short($_, 70) for top(\%proj, 8);
+
+  print "\nMost common commands (each step of && ; | counted):\n";
+  printf "    %4d  %s\n", $pat{$_}, $_ for top(\%pat, 15);
+
+  my @slow = (sort { $b->{ms} <=> $a->{ms} } @runs)[0 .. (@runs < 5 ? $#runs : 4)];
+  print "\nSlowest:\n";
+  printf "    %6.1fs  %s  %s\n", $_->{ms} / 1000, $_->{id}, short($_->{cmd}, 60) for @slow;
+
+  my @failed = grep { $_->{exit} ne '0' } @runs;
+  if (@failed) {
+    print "\nFailed or unfinished (newest last):\n";
+    printf "    %-10s %s  %s\n", $_->{timeout} ? 'timeout' : "exit $_->{exit}", $_->{id}, short($_->{cmd}, 56)
+      for @failed[($#failed > 9 ? $#failed - 9 : 0) .. $#failed];
+  }
+
+  my @denied = grep { $_->{denied} } @runs;
+  if (@denied) {
+    print "\nHit a sandbox wall (\"operation not permitted\" in the output — even if exit 0):\n";
+    printf "    %3d×  %s  %s\n", $_->{denied}, $_->{id}, short($_->{cmd}, 56) for @denied;
+  }
+
+  my @edits = grep { $_->{cmd} =~ /\bsed\s+-i|\bcat\s*>|\btee\s|>\s*\/tmp\// } @runs;
+  if (@edits) {
+    printf "\nRuns that edit files or write /tmp (%d) — agents should use their edit tools:\n", scalar @edits;
+    printf "    %s  %s\n", $_->{id}, short($_->{cmd}, 62) for @edits[($#edits > 4 ? $#edits - 4 : 0) .. $#edits];
+  }
+} else {
+  print "Runs: none\n";
+}
+
+# --- blocked -----------------------------------------------------------------
+my @blk;
+if (open(my $fh, '<:raw', "$dir/blocked.jsonl")) {
+  while (<$fh>) { my $r = eval { decode_json($_) } or next; push @blk, $r if !$since_iso || $r->{ts} ge $since_iso }
+}
+print "\nBlocked attempts: ", scalar @blk, "\n";
+if (@blk) {
+  my (%why, %src);
+  $why{$_->{reason}}++, $src{$_->{source}}++ for @blk;
+  print "  by source: ", join(', ', map { "$_ $src{$_}" } sort keys %src), "\n";
+  printf "    %4d  %s\n", $why{$_}, $_ for top(\%why, 10);
+  print "  latest:\n";
+  printf "    %s %-5s %s\n", local_ts($_->{ts}), $_->{source}, short($_->{command}, 60)
+    for @blk[($#blk > 9 ? $#blk - 9 : 0) .. $#blk];
+}
+
+# --- requests ----------------------------------------------------------------
+my $req = 0;
+if (open(my $fh, '<', "$dir/requests.jsonl")) { $req++ while <$fh> }
+print "\nPending component requests: $req", ($req ? "  (components_requests)" : ''), "\n";
+print "\nFiles: $dir/{runs/, blocked.jsonl}\n";
+PERL
+}
+
 # components_images [prune] — Docker images pinned in the manifest (docker=,
 # @image): pulled or not, and size. Every pinned image is remembered in
 # $TOOLSHELF_STATE/images.log (toolshelf's run adds the ones it uses), so
