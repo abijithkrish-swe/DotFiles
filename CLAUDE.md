@@ -22,7 +22,7 @@ use_jdk 17          # Sets JAVA_HOME, updates PATH (aliases: jdk, jdk_use, jdk11
 use_maven 3.9       # Sets M2_HOME, MAVEN_HOME (alias: maven_use)
 use_gradle 8.14     # Sets GRADLE_HOME (alias: gradle_use)
 use_ant 1.9         # Sets ANT_HOME (alias: ant_use)
-use_python 3.11     # PATH only — no PYTHONHOME (venv safe). Alias: python_use, py (none approved yet)
+use_python 3.15     # PATH only — no PYTHONHOME (venv safe). Alias: python_use, py
 use_node 22         # PATH only (alias: node_use)
 use_go 1.27         # Sets GOROOT (alias: go_use)
 use_rust            # PATH only; CARGO_HOME is $XDG_DATA_HOME/cargo (alias: rust_use)
@@ -31,7 +31,7 @@ use_mysql 8         # PATH + MYSQL_HOME/data dirs + start/stop (alias: mysql_use
 use_protoc 25       # PATH only (aliases: protobuf_use, use_protobuf)
 ```
 
-Installed now: JDK 11/17/25/26.0.2 (no 21; plan is 17 → 25), Maven 3.9.12/4.0.0-rc-5, Gradle 8.14.4/9.3.1, Ant 1.9.6, Node 20/22/24/25/26, Go 1.24.5/1.27.4, Rust 1.99.1, Protobuf 3.16.3/25.5, Redis 6.2.14/7.4.5, MySQL 5.7.30/8.0.43. Run `components_check` for the live list.
+Installed now: JDK 11/17/25/26.0.2 (no 21; plan is 17 → 25), Maven 3.9.12/4.0.0-rc-5, Gradle 8.14.4/9.3.1, Ant 1.9.6, Node 20/22/24/25/26, Go 1.24.5/1.27.4, Rust 1.99.1, Python 3.15.2, Protobuf 3.16.3/25.5, Redis 6.2.14/7.4.5, MySQL 5.7.30/8.0.43. Run `components_check` for the live list.
 
 Each tool also has:
 - `<tool>_list`: approved versions with default/autoload flags, plus broken or unapproved folders.
@@ -78,7 +78,7 @@ Set in the manifest, not in zsh. `default` is used when no version is given, and
 
 - Autoload: JDK 11
 - On PATH only: MySQL 8.0.43 client (for remote instances; no `MYSQL_HOME`/socket set, server not started)
-- Defaults: JDK 11, Maven 3.9.12, Gradle 8.14.4, Ant 1.9.6, Node 20.19.5, Go 1.27.4, Rust 1.99.1, Protobuf 3.16.3, Redis 7.4.5, MySQL 8.0.43
+- Defaults: JDK 11, Maven 3.9.12, Gradle 8.14.4, Ant 1.9.6, Node 20.19.5, Go 1.27.4, Rust 1.99.1, Python 3.15.2, Protobuf 3.16.3, Redis 7.4.5, MySQL 8.0.43
 
 ## Key Paths
 
