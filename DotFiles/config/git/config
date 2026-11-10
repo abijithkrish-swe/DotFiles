@@ -10,7 +10,7 @@
 
 [core]
 	excludesfile = ~/.gitignore_global
-  attributesfile = ~/.gitattributes
+	attributesfile = ~/.gitattributes
 	editor = /usr/bin/vim
 	pager = less -X -R -F
 	autocrlf = false
@@ -84,3 +84,11 @@
 #   ~/.config/git/identity.d/*  one [user] per folder rule
 [include]
 	path = ~/.config/git/identity
+
+# Machine-specific overrides (never in this repo), included last so they win.
+# e.g. this Mac's absolute credential helper path:
+#   [credential]
+#   	helper =              # empty value clears the inherited helper list
+#   	helper = /abs/path/to/git-credential-osxkeychain
+[include]
+	path = ~/.config/git/local

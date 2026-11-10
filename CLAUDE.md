@@ -159,7 +159,7 @@ Verb-based; no verb prints usage and changes nothing.
 - `deploy [--force]` — repo → `$HOME`. Reviews local drift first (fold back to repo or discard), backs up touched home paths to `Backup/<ts>/home/`, then applies: `~/.zshrc`/`~/.vimrc` copy, `~/.zsh.d/` mirror (deletes stale), `~/.config/<x>/` merge. `--force` skips review and confirmation.
 - `sync [--force]` — bidirectional reconcile, no side authoritative. Per change: `>` repo→home, `<` home→repo, `x` delete, `s` skip, `q` quit. Whichever side gets overwritten is backed up first (`Backup/<ts>/home/` or `Backup/<ts>/repo/`).
 - `backup list | show [ts] | create | restore [ts]` — snapshots under `Backup/<ts>/`.
-- `identity` — prompts for this machine's git identity (default + optional per-folder, e.g. `~/Projects/Personal`); stored in `~/.config/git/identity` + `identity.d/`, never in the repo. `deploy` offers it when missing; `[user]` folded back into the repo config is stripped.
+- `identity` — prompts for this machine's git identity (default + optional per-folder, e.g. `~/Projects/Personal`); stored in `~/.config/git/identity` + `identity.d/`, never in the repo. `deploy` offers it when missing; `[user]` folded back into the repo config is stripped. Other per-machine git settings (e.g. this Mac's absolute credential-helper path) go in `~/.config/git/local`, included last.
 
 `~/.config/secrets/` is excluded from all three.
 

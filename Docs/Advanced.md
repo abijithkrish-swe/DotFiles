@@ -40,3 +40,16 @@ Your git name/email is **not** stored in this repo. The tracked
   the repo's git config, the installer strips it. Don't use
   `git config --global user.*`; use `install_copy.sh identity`.
 - Check which identity a repo gets: `git config user.email` (inside the repo).
+
+## Machine-specific git settings
+Settings that only make sense on one machine go in `~/.config/git/local`. It's
+never in the repo, and the tracked config includes it **last**, so it wins.
+Example from the work Mac, where the default keychain helper misbehaves:
+
+```
+[credential]
+	helper =      # empty value clears the inherited `osxkeychain`
+	helper = /Library/Developer/CommandLineTools/usr/libexec/git-core/git-credential-osxkeychain
+```
+
+Check the effective value with `git config --show-origin --get-all credential.helper`.
