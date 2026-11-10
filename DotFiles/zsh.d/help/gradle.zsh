@@ -25,7 +25,7 @@ components_status       # See active Gradle version
 
 Configuration
 -------------
-Gradle properties: ~/.gradle/gradle.properties
+Gradle properties: $GRADLE_USER_HOME/gradle.properties (~/.local/share/gradle)
 Prefer the approved `gradle` over ./gradlew — the wrapper downloads its own
 distribution (see 'devhelp components').
 

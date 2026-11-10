@@ -53,3 +53,20 @@ Example from the work Mac, where the default keychain helper misbehaves:
 ```
 
 Check the effective value with `git config --show-origin --get-all credential.helper`.
+
+## Build-tool caches (XDG)
+`10-env-path.zsh` moves build-tool caches out of `$HOME`. They are shared
+safely across tool versions:
+
+| Tool | Variable | Location |
+|------|----------|----------|
+| Gradle | `GRADLE_USER_HOME` | `~/.local/share/gradle` |
+| npm | `npm_config_cache`, `NPM_CONFIG_USERCONFIG` | `~/.cache/npm`, `~/.config/npm/npmrc` |
+| Cargo | `CARGO_HOME` | `~/.local/share/cargo` (`bin/` on PATH) |
+| Go | `GOPATH` | `~/.local/share/go` (`bin/` on PATH; build cache in `~/Library/Caches/go-build`) |
+| Maven | (unchanged) | `~/.m2`: VS Code's LemMinX writes there anyway |
+
+GUI apps don't read zsh. In IntelliJ / Android Studio, set
+*Settings → Build Tools → Gradle → Gradle user home* to `~/.local/share/gradle`,
+or they will recreate `~/.gradle`. AI-agent sandbox runs use separate caches under
+`~/.cache/toolshelf/`.

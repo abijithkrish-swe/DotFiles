@@ -151,8 +151,10 @@ Removed/changed from today's server:
 
 - macOS `sandbox-exec` with a generated profile:
   - **read:** broad (system, `~/Components`, project)
-  - **write:** project dir + declared caches only (`~/.m2`, `~/.gradle`,
-    `~/.npm`, `~/.cache/go-build`, `$TMPDIR`)
+  - **write:** project dir, a private temp dir, and **sandbox-only caches**
+    under `$XDG_CACHE_HOME/toolshelf/` (m2, gradle, npm, cargo, go). Your own
+    caches are never writable from a run, so a malicious dependency can't
+    poison what your shell builds trust.
   - **network:** only `127.0.0.1:3128` (the zero-trust proxy) and localhost —
     so every outbound request goes through the proxy or fails
 - Minimal env: manifest-computed PATH/homes + proxy vars + `NODE_EXTRA_CA_CERTS`.
@@ -273,7 +275,7 @@ own repo.
 2. `./install.sh --prefix=$HOME/Components/Rust/<ver>` — **not rustup**
    (rustup self-updates toolchains, which bypasses the approved list).
 3. Add `rust <ver> default` to the manifest, deploy, check `list_components`.
-4. Set `CARGO_HOME` (registry cache) per project or leave at `~/.cargo`;
+4. `CARGO_HOME` (registry cache, `cargo install` bins) is `$XDG_DATA_HOME/cargo`;
    it is a cache, not the toolchain.
 
 ### Add a brand-new component type
@@ -311,7 +313,7 @@ own repo.
 |---|---|---|
 | 1 | **Agent shells don't have your zsh helpers.** Claude Code's shell snapshot drops `_`-prefixed functions (`_jdk_home`, `_mysql_bindir_for`, …), so `use_jdk 17` fails there. State also doesn't persist between commands. | Agents use `get_component_env` / `run`, never `use_*`. |
 | 2 | **Build tools download things themselves.** Gradle/Maven wrappers fetch distributions, `npx`/corepack fetch packages, IntelliJ offers JDK downloads. These are the main "unplanned reference" leak. | Hook blocks wrapper-version changes; sandbox network = proxy only; prefer manifest `gradle`/`mvn` over `./gradlew`/`./mvnw` (or point `distributionUrl` at a local file). |
-| 3 | **Sandbox vs. real builds.** Maven/Gradle/npm need network for dependencies and write to `~/.m2`, `~/.gradle`, `~/.npm`. | Profile explicitly allows those caches + proxy. Expect a few iterations of the profile. |
+| 3 | **Sandbox vs. real builds.** Maven/Gradle/npm/cargo/go need network for dependencies and write caches. | Profile explicitly allows those caches + proxy. Expect a few iterations of the profile. |
 | 4 | **`sandbox-exec` is deprecated by Apple** (still works; Claude Code itself relies on Seatbelt). | Keep the profile in one template; Docker mode is the fallback. |
 | 5 | **The MCP `run` tool bypasses the agent's own permission checks.** Commands passed to an MCP tool aren't seen by Claude Code's Bash deny rules or hook. | `run` applies `blocklist.txt` itself; set `run` to "ask" in every client. |
 | 6 | **Docker ≠ host.** Linux images match versions, not exact builds; macOS binaries in `~/Components` can't run in containers. "Works in Docker, fails on host" is possible. | Docker only for untrusted code and services; real builds in sandbox mode. |

@@ -33,6 +33,20 @@ export XDG_DATA_HOME="$HOME/.local/share"
 export XDG_CACHE_HOME="$HOME/.cache"
 export XDG_STATE_HOME="$HOME/.local/state"
 
+# --- Build-tool caches & data (XDG instead of ~/.gradle, ~/.npm, ~/.cargo, ~/go)
+# These caches are shared safely across tool versions. GUI apps (IntelliJ,
+# Android Studio) don't read zsh: set their "Gradle user home" to the same path.
+# Maven stays at ~/.m2 (other tools, e.g. VS Code's LemMinX, write there anyway).
+# AI-agent sandbox runs use their own caches under $XDG_CACHE_HOME/toolshelf/.
+export GRADLE_USER_HOME="$XDG_DATA_HOME/gradle"
+export npm_config_cache="$XDG_CACHE_HOME/npm"
+export NPM_CONFIG_USERCONFIG="$XDG_CONFIG_HOME/npm/npmrc"
+export CARGO_HOME="$XDG_DATA_HOME/cargo"
+export GOPATH="$XDG_DATA_HOME/go"
+# Binaries from `cargo install` / `go install` (low priority, appended)
+[ -d "$CARGO_HOME/bin" ] && path+=("$CARGO_HOME/bin")
+[ -d "$GOPATH/bin" ] && path+=("$GOPATH/bin")
+
 # User-local binaries (claude, copilot, etc.)
 if [ -d "$HOME/.local/bin" ] && ls "$HOME/.local/bin"/* &>/dev/null; then
   path+=($HOME/.local/bin)

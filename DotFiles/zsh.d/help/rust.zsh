@@ -38,7 +38,8 @@ rustc --version              # confirm toolchain
 
 Notes
 -----
-• PATH only. CARGO_HOME stays ~/.cargo (registry cache, cargo-installed bins).
+• PATH only. CARGO_HOME is ~/.local/share/cargo (registry cache, cargo-installed
+  bins on PATH via $CARGO_HOME/bin).
 • Targets other than aarch64-apple-darwin need their rust-std installed too.
 EOF2
 }

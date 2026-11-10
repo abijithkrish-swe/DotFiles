@@ -2,7 +2,7 @@
 # Versions come from the components manifest. Toolchains are installed with the
 # standalone installer into ~/Components/Rust/<ver> (not rustup, which
 # self-updates). PATH only: CARGO_HOME (registry cache, cargo-installed bins)
-# stays at its default ~/.cargo.
+# is $XDG_DATA_HOME/cargo, set in 10-env-path.zsh.
 rust_list() { components_list rust Rust; }
 
 use_rust() {
