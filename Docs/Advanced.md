@@ -70,3 +70,19 @@ GUI apps don't read zsh. In IntelliJ / Android Studio, set
 *Settings → Build Tools → Gradle → Gradle user home* to `~/.local/share/gradle`,
 or they will recreate `~/.gradle`. AI-agent sandbox runs use separate caches under
 `~/.cache/toolshelf/`.
+
+### Gradle toolchains: approved JDKs only
+Without limits, Gradle downloads a JDK whenever a build asks for a Java version
+it can't find. `jdk_gradle_sync` (in `71-jdk.zsh`, run at login) keeps this
+block in `$GRADLE_USER_HOME/gradle.properties`, generated from the manifest.
+The rest of the file is left alone:
+
+```
+org.gradle.java.installations.auto-download=false
+org.gradle.java.installations.auto-detect=false
+org.gradle.java.installations.paths=<every approved JDK home>
+```
+
+A build asking for an unapproved version now fails with *"Cannot find a Java
+installation … Toolchain auto-provisioning is not enabled"*. Approve that JDK in
+the manifest, then run `jdk_gradle_sync` or open a new shell.

@@ -29,6 +29,11 @@ Gradle properties: $GRADLE_USER_HOME/gradle.properties (~/.local/share/gradle)
 Prefer the approved `gradle` over ./gradlew — the wrapper downloads its own
 distribution (see 'devhelp components').
 
+Toolchains: Gradle may only use approved JDKs. jdk_gradle_sync (run at login)
+keeps a managed block in gradle.properties: auto-download and auto-detect off,
+paths = approved JDK homes. A build asking for an unapproved Java version fails
+with "Cannot find a Java installation"; add that JDK to the manifest instead.
+
 EOF2
 }
 

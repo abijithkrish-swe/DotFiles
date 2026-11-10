@@ -16,6 +16,8 @@ use_jdk [ver]|off   # switch JAVA_HOME + PATH (no ver = manifest default; prefix
   e.g. use_jdk 17    # set JDK 17
        use_jdk off   # unset JAVA_HOME, fallback system Java
 
+jdk_gradle_sync      # limit Gradle toolchains to approved JDKs (runs at login)
+
 Shortcuts:
   jdk <ver>|off      # alias for use_jdk
   jdk11              # activate JDK 11

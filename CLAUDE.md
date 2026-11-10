@@ -166,7 +166,7 @@ Verb-based; no verb prints usage and changes nothing.
 ## When Creating Projects
 
 - If the project needs specific tool versions, create a `.toolsrc` file.
-- Java projects: JDK 11/17/25/26, Maven, Gradle, Ant available (see `components_check`).
+- Java projects: JDK 11/17/25/26, Maven, Gradle, Ant available (see `components_check`). Gradle toolchains are limited to approved JDKs (`jdk_gradle_sync`); never enable auto-provisioning.
 - Rust projects: `use_rust` (standalone toolchain, no rustup).
 - Python projects: use `use_python`; user manages venvs directly (no wrapper).
 - Node projects: prefer `use_node` (component-based); NVM is present but disabled.

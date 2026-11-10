@@ -33,6 +33,8 @@ case $- in
         fi
       done
       unset _cm_t
+      # Keep Gradle toolchains limited to approved JDKs (no-op when unchanged)
+      (( $+functions[jdk_gradle_sync] )) && jdk_gradle_sync >/dev/null
     fi
   ;;
 esac
