@@ -1,0 +1,43 @@
+# blocklist.txt — commands AI agents must never run (install/upgrade tools,
+# fetch-and-execute, change toolchain versions). Shared by the toolshelf MCP
+# `run` tool and (step 4) the Claude Code PreToolUse hook.
+# Deployed to ~/.config/agents/blocklist.txt. Design: Docs/AgentComponents.md
+#
+# Format: <regex> ## <reason shown to the agent>
+#   - Perl/JavaScript regex syntax, matched case-sensitively against the
+#     whole command string. Anchor words with (^|[\s;&|(`]) so paths like
+#     .venv/bin/pip don't match bare `pip`.
+#   - This list is a speed bump with clear messages; the sandbox (writes to
+#     project/caches only, network via proxy only) is the real wall.
+
+# --- system package managers ------------------------------------------------
+(^|[\s;&|(`])brew\s+(install|reinstall|upgrade|update|tap|bundle|link|uninstall|remove|rm)\b ## Homebrew changes system tools — ask the user
+(^|[\s;&|(`])port\s+(install|upgrade|selfupdate)\b ## MacPorts changes system tools — ask the user
+(^|[\s;&|(`])sudo\b ## sudo is never allowed for agents
+(^|[\s;&|(`])softwareupdate\b ## OS updates are the user's call
+xcode-select\s+--install ## installing Xcode tools is the user's call
+
+# --- fetch and execute --------------------------------------------------------
+(curl|wget)\b[^|]*\|\s*(sudo\s+)?(sh|bash|zsh|python3?|perl|ruby|node)\b ## piping a download into a shell runs unreviewed code
+(^|[\s;&|(`])(sh|bash|zsh)\s+<\(\s*(curl|wget)\b ## running a downloaded script runs unreviewed code
+
+# --- toolchain / version managers (versions come from the components manifest)
+(^|[\s;&|(`])(rustup|sdk|nvm|fnm|volta|pyenv|rbenv|jenv|asdf|mise|rtx|goenv|n)\s+(install|use|update|upgrade|self|plugin|default|global|toolchain)\b ## versions come only from the components manifest — use request_component
+(^|[\s;&|(`])corepack\s+(enable|prepare|install|use|up)\b ## corepack downloads package managers — ask the user
+GOTOOLCHAIN=(?!local\b) ## Go must not auto-download toolchains (GOTOOLCHAIN=local only)
+
+# --- global / tool installs ---------------------------------------------------
+(^|[\s;&|(`])(npm|pnpm|yarn|bun)\s+([^;&|]*\s)?(-g|--global)\b ## global package installs change the user's tools
+(^|[\s;&|(`])(npm|pnpm|yarn)\s+global\b ## global package installs change the user's tools
+(^|[\s;&|(`])npx\s+([^;&|]*\s)?(-y|--yes)\b ## npx -y downloads and runs packages unasked
+(^|[\s;&|(`])pip3?\s+install\b ## use a project venv: .venv/bin/pip install ...
+(^|[\s;&|(`])python3?\s+-m\s+pip\s+install\b ## use a project venv: .venv/bin/python -m pip install ...
+(^|[\s;&|(`])(pipx|uv\s+tool)\s+install\b ## installs global tools — ask the user
+(^|[\s;&|(`])gem\s+install\b ## installs global gems — ask the user
+(^|[\s;&|(`])cargo\s+install\b ## installs binaries into the user's toolchain — ask the user
+(^|[\s;&|(`])go\s+install\s+\S+@ ## installs binaries — ask the user
+
+# --- build-tool wrappers changing versions -------------------------------------
+(^|[\s;&|(`])(\./)?(gradlew?|gradlew\.bat)\s+([^;&|]*\s)?wrapper\b ## changing the Gradle wrapper version is the user's call
+(^|[\s;&|(`])(\./)?mvnw?\s+([^;&|]*\s)?(wrapper:wrapper|io\.takari:maven:wrapper)\b ## changing the Maven wrapper version is the user's call
+org\.gradle\.java\.installations\.auto-download=true ## Gradle must not auto-provision JDKs

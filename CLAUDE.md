@@ -13,7 +13,7 @@ Layout: `DotFiles/zsh.d/` (modules), `DotFiles/config/` (XDG configs), `Docs/` (
 
 All tools are installed under `~/Components/<Tool>/<Version>/`. **Only versions listed in the manifest `~/.config/components/components.conf` can be used.** It is the approved list (source: `DotFiles/config/components/components.conf`). Shell functions, `toolup`, login defaults, tab completion and the `toolshelf` MCP server all read it. An unlisted folder on disk is rejected. Design: `Docs/AgentComponents.md`.
 
-**AI agents:** don't use the `use_*` functions; they depend on zsh helpers that agent shells don't load. Use the `toolshelf` MCP (`list_components`, `get_component_env`) and prefix commands with the exports it returns. Never install or upgrade tools; ask the user.
+**AI agents:** don't use the `use_*` functions; they depend on zsh helpers that agent shells don't load. Use the `toolshelf` MCP: `list_components`, `get_component_env` (prefix commands with its exports), `resolve_toolsrc` (a project's pinned versions), and `run` (builds and tests in the macOS sandbox: project-only writes, proxy-only network, no secrets). Never install or upgrade tools. For a missing version, call `request_component` and tell the user, who reviews it with `components_requests`.
 
 Activation is via **`use_<tool> [version]`**. The version can be exact or a unique prefix on a segment boundary: `17` → 17, `3.9` → 3.9.12, `22` → 22.21.1, but `2` is rejected rather than guessed. With no version it uses the manifest default; `off` deactivates. Inverse aliases (`<tool>_use`) exist for nearly all tools.
 
@@ -37,7 +37,7 @@ Each tool also has:
 - `<tool>_list`: approved versions with default/autoload flags, plus broken or unapproved folders.
 - `<tool>_clear`: deactivate.
 
-Shared commands: `components_status` (what's active; alias `status_components`), `components_check` (health of the whole manifest), and `components_reload`. Reload is rarely needed: edits to the manifest are picked up automatically.
+Shared commands: `components_status` (what's active; alias `status_components`), `components_check` (health of the whole manifest), `components_requests [clear]` (versions agents asked for), and `components_reload`. Reload is rarely needed: edits to the manifest are picked up automatically.
 
 Redis/MySQL extras: `redis_start`/`redis_stop` (aliases `rstart`/`rstop`/`rcli`); `mysql_start`/`mysql_stop`/`mysql_restart`/`mysql_cli`/`mysql_current`.
 

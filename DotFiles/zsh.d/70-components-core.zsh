@@ -233,6 +233,29 @@ components_check() {
   done
 }
 
+# components_requests [clear] — versions AI agents asked for via the toolshelf
+# MCP (request_component). Agents never install; you decide. `clear` archives
+# the list to requests.done.jsonl.
+components_requests() {
+  emulate -L zsh
+  local dir="${TOOLSHELF_STATE:-${XDG_STATE_HOME:-$HOME/.local/state}/toolshelf}"
+  local file="$dir/requests.jsonl"
+  if [[ "$1" == "clear" ]]; then
+    [[ -s "$file" ]] || { echo "No pending requests."; return 0; }
+    cat "$file" >> "$dir/requests.done.jsonl" && : >| "$file"
+    echo "Archived to $dir/requests.done.jsonl"
+    return 0
+  fi
+  [[ -s "$file" ]] || { echo "No pending requests."; return 0; }
+  echo "Component requests from agents ($file):"
+  /usr/bin/perl -MJSON::PP -ne '
+    my $r = eval { decode_json($_) } or next;
+    printf "  %d. %s  %s %s — %s%s\n", $., substr($r->{ts}, 0, 10), $r->{tool}, $r->{version},
+      $r->{reason}, $r->{project} ? "  ($r->{project})" : "";
+  ' "$file"
+  echo "Approve: install it, add it to the manifest (devhelp components). Then: components_requests clear"
+}
+
 # components_activate <tool> <label> <state-var> [version]
 # Resolve, export home env vars, swap PATH, record status. Prints nothing.
 components_activate() {

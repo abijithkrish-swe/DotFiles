@@ -7,7 +7,7 @@ anything on their own.
 Read this when you: set up a new machine, add/update a component, or wire up a
 new coding agent.
 
-> Status: **steps 1–2 done**: the manifest drives the MCP read tools, `get_component_env` and the zsh `use_*` / `toolup` / login defaults. See [Implementation order](#implementation-order).
+> Status: **steps 1–3 done**: manifest-driven MCP + zsh, and sandboxed `run`. Next: step 4 (agent guardrails). See [Implementation order](#implementation-order).
 
 ---
 
@@ -130,16 +130,16 @@ Who reads it:
 | `get_component_versions(tool)` ✅ | read | Approved versions for one tool |
 | `get_defaults` ✅ | read | `default` / `autoload` versions from the manifest |
 | `get_component_env(tools)` ✅ | read | Returns `export JAVA_HOME=…` / `export PATH=…` lines computed from the manifest. Agents prefix their commands with it. No zsh dependency. |
-| `resolve_toolsrc(dir)` | read | Parse a project's `.toolsrc` → resolved versions (errors on unknown) |
-| `run(tools, command, cwd, mode)` | exec | Runs a command with those versions. `mode`: `sandbox` (default) or `docker`. Applies the same command blocklist as the hook. |
-| `request_component(tool, version, reason)` | write-request | Appends to `~/.config/components/requests.log`. **Never installs.** |
+| `resolve_toolsrc(dir)` ✅ | read | A project's `.toolsrc` → exports + the `tools` map for `run`. Shell-only keys (`PATH_PREPEND`, `EXPORT`, MySQL start/stop) are reported, not applied |
+| `run(command, cwd, tools?, timeout_seconds?)` ✅ | exec | Runs a command in the macOS sandbox with those versions; `tools` omitted → the project's `.toolsrc`. Applies the blocklist first. Docker mode: step 5 |
+| `request_component(tool, version, reason, project?)` ✅ | write-request | Appends to `$XDG_STATE_HOME/toolshelf/requests.jsonl`; you review with `components_requests`. **Never installs.** Says so if the version is already approved |
 | `colima_status` | read | One zsh invocation, not five (currently still five) |
 
 Registered in Claude Code (user scope) with the pinned node, via `./install.sh --register`:
 `claude mcp add toolshelf -s user -- ~/Components/Node/20.19.5/bin/node ~/Components/toolshelf-mcp/dist/index.js`.
 Snippets for VS Code / Codex: `toolshelf-mcp/config/`.
 
-Removed/changed from today's server:
+Removed/changed from the first version of the server:
 
 - `activate_component` / `deactivate_component` → replaced by `get_component_env`
   (shell-function commands fail in agent shells — see [Known issues](#8-known-issues--risks)).
@@ -147,19 +147,55 @@ Removed/changed from today's server:
 - Colima start/stop/delete → stay as "returns command for you to run"; not executed.
 - No `install`, `upgrade`, `remove`, `download` tool. Ever.
 
-### `run` — sandbox mode (default)
+### `run` — sandbox mode (default) ✅
 
-- macOS `sandbox-exec` with a generated profile:
-  - **read:** broad (system, `~/Components`, project)
-  - **write:** project dir, a private temp dir, and **sandbox-only caches**
-    under `$XDG_CACHE_HOME/toolshelf/` (m2, gradle, npm, cargo, go). Your own
-    caches are never writable from a run, so a malicious dependency can't
-    poison what your shell builds trust.
-  - **network:** only `127.0.0.1:3128` (the zero-trust proxy) and localhost —
-    so every outbound request goes through the proxy or fails
-- Minimal env: manifest-computed PATH/homes + proxy vars + `NODE_EXTRA_CA_CERTS`.
-  **No inherited secrets** (anything from `use_secret` is dropped).
-- Timeout + output cap; long builds return a tail and a log file path.
+Order of checks, then the run (`toolshelf-mcp/src/sandbox.ts`):
+
+1. **Blocklist:** `~/.config/agents/blocklist.txt` (source:
+   `DotFiles/config/agents/blocklist.txt`), `<regex> ## <reason>` per line. A
+   match returns the reason and nothing runs. A missing or invalid list refuses
+   every run (fail closed).
+2. **Project dir:** must be a real directory at least two levels under `$HOME`.
+   It is never `~/Projects` itself, and never inside `~/.config`, `~/.local`,
+   `~/.cache`, `~/Library`, `~/Components`, `~/.ssh`, and similar.
+3. **Versions:** approved only, with the same matching rules as everywhere else.
+4. **Environment:** built from scratch, nothing inherited (no tokens, no `use_secret` values):
+   - PATH = approved component bins + `/usr/bin:/bin:/usr/sbin:/sbin` (no Homebrew);
+   - the tools' home variables (`JAVA_HOME`, `GOROOT`, …);
+   - proxy variables;
+   - cache variables pointing at the sandbox caches;
+   - `GOTOOLCHAIN=local`;
+   - `MAVEN_OPTS` / `GRADLE_OPTS` with `-Djava.io.tmpdir`, because macOS Java ignores `TMPDIR`.
+5. **Sandbox-only caches** under `$XDG_CACHE_HOME/toolshelf/`:
+   - **Maven:** a generated `settings.xml` with proxy and local repo, passed via `MAVEN_ARGS`.
+   - **Gradle:** a generated `gradle.properties` with proxy, `daemon=false` (a daemon
+     would outlive the run's sandbox), and toolchains limited to approved JDKs.
+   - **npm, Cargo, Go:** caches set through environment variables.
+
+   The generated files are rewritten before every run, so a run can't change them
+   for the next one. Your own caches are never writable.
+6. **Sandbox profile** (`sandbox-exec`, generated per run into `$XDG_STATE_HOME/toolshelf/runs/<id>.sb`):
+   - **write:** project dir, sandbox caches (including a private per-run tmp), `/dev/null` and similar;
+   - **read:** everything except credentials and private data: `~/.ssh`, `~/.gnupg`,
+     `~/.aws`, `~/.kube`, `~/.docker`, `~/.config/{secrets,gh,docker,npm,gcloud,claude-personal}`,
+     `~/.claude*`, `~/.netrc`, `~/.npmrc`, Maven/Gradle/Cargo credential files,
+     shell history (`~/.zshcache`), and all of `~/Library` (keychains, app data, cookies);
+   - **network:** localhost only. That covers the zero-trust proxy and local test servers.
+     There is no DNS, no direct internet, and no unix sockets, so the Docker socket is unreachable too.
+7. **Run:** `zsh -f -c <command>` in its own process group. The timeout (default
+   600 s, max 3600) kills the whole tree. The response has the exit code, duration
+   and the last 30 KB of output. The full log is at
+   `$XDG_STATE_HOME/toolshelf/runs/<id>.log`.
+
+Verified on this Mac:
+- **Blocked:** `brew install` and `curl … | bash`;
+- **Refused:** writes outside the project, and reads of `~/.ssh`, shell history and `~/Library`;
+- **Direct internet fails;**
+- **Real dependency builds through the proxy:** Maven 3.9 and 4 with JDK 17 and 25,
+  Gradle 8.14 and 9.3, `npm install`, `cargo run` with a crate, and `go mod tidy && go run`.
+
+**Known limit:** Node's built-in `fetch()` ignores proxy variables, so it can't
+reach the internet from a run (npm itself works).
 
 ### `run` — docker mode (untrusted code)
 
@@ -329,7 +365,7 @@ own repo.
 
 - [x] 1. `components.conf` + Node parser; MCP read tools + `get_component_env` use it; MCP registered from project path with pinned node
 - [x] 2. zsh `70-components-core.zsh` reads the manifest (use_*, toolup, completion, `components_check`); `79-defaults.zsh` autoloads from `autoload` flags
-- [ ] 3. ~~`get_component_env`~~ (done in step 1); `run` (sandbox mode), `request_component`, `resolve_toolsrc`
+- [x] 3. `run` (sandbox mode), `request_component` (+ `components_requests` in zsh), `resolve_toolsrc`; blocklist in `DotFiles/config/agents/`
 - [ ] 4. `AGENTS.md`, `blocklist.txt`, `guard.sh`, Claude Code + Codex settings; deploy via installer
 - [ ] 5. `run` docker mode with pinned digests
 - [ ] 6. ~~`components_check`~~ (done in step 2); ~~fix MCP README/config; run MCP from installed copy~~ (done); colima_status single zsh call

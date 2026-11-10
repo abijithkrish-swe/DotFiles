@@ -52,7 +52,11 @@ toolup                  # resets PATH, applies .toolsrc; returns 1 on failures
 
 AI agents
 ---------
-Agents use the toolshelf MCP (list_components, get_component_env), not use_*.
+Agents use the toolshelf MCP, not use_*: get_component_env, resolve_toolsrc,
+and run (sandboxed: project-only writes, proxy-only network, no secrets).
+They never install; missing versions come to you as requests:
+components_requests        # review what agents asked for
+components_requests clear  # archive after deciding
 Design & runbooks: Docs/AgentComponents.md
 EOF2
 }
