@@ -9,8 +9,11 @@ Your portable layout
 ~/Components/Python/<ver>/
   ├─ bin/         # python3, pip3
   └─ ...
-(No Python versions are approved yet — add one to the components manifest,
- see 'devhelp components'.)
+Approved: see python_list (3.15.2 is the default).
+New versions: python-build-standalone "install_only" tarballs (binary,
+aarch64-apple-darwin) — verify with the release's SHA256SUMS, extract with
+--strip-components 1 into ~/Components/Python/<ver>, then add the version to
+the components manifest ('devhelp components').
 
 Helper commands (from your zsh modules)
 ---------------------------------------
