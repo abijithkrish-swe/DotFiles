@@ -7,7 +7,20 @@
       "mcp__toolshelf__get_component_env",
       "mcp__toolshelf__resolve_toolsrc",
       "mcp__toolshelf__request_component",
-      "mcp__toolshelf__colima_status"
+      "mcp__toolshelf__colima_status",
+      "Bash(docker image inspect *)",
+      "Bash(docker history *)",
+      "Bash(colima status *)",
+      "Bash(docker system df *)",
+      "Bash(git merge-base *)",
+      "Bash(colima list *)",
+      "Bash(claude mcp get *)",
+      "Bash(docker image ls *)",
+      "Bash(docker compose logs *)",
+      "Bash(shasum *)",
+      "Bash(docker compose ps *)",
+      "Bash(defaults read *)",
+      "Bash(sips -g *)"
     ],
     "ask": [
       "mcp__toolshelf__run"

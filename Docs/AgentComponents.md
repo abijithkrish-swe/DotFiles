@@ -279,7 +279,7 @@ configs:
 
 | Setting | Value |
 |---|---|
-| `permissions.allow` | read-only toolshelf tools (`list_components`, `get_component_versions`, `get_defaults`, `get_component_env`, `resolve_toolsrc`, `colima_status`) and `request_component`, which only records a request |
+| `permissions.allow` | read-only toolshelf tools (`list_components`, `get_component_versions`, `get_defaults`, `get_component_env`, `resolve_toolsrc`, `colima_status`) and `request_component`, which only records a request. Also read-only Bash commands that came up often in a transcript scan (`/fewer-permission-prompts`, 2026-11-11) and that Claude Code doesn't already allow: `docker image inspect/ls`, `docker history`, `docker system df`, `docker compose logs/ps`, `colima status/list`, `git merge-base`, `claude mcp get`, `shasum`, `defaults read`, `sips -g`. Never interpreters, `awk`, task runners or anything that writes |
 | `permissions.ask` | `mcp__toolshelf__run` |
 | `permissions.deny` | a backstop to the hook for the most common install commands: sudo, Homebrew changes, global npm, pip, rustup, cargo install, sdkman, nvm, softwareupdate |
 | `hooks.PreToolUse` (matcher `Bash`) | `$HOME/.config/agents/guard.sh` |
