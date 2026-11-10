@@ -30,4 +30,8 @@ if [[ "$ENABLE_TMUX" == "true" ]] && (( $+commands[tmux] )); then
   # 4. Split helpers (inside tmux)
   alias tms='tmux split-window -v'
   alias tml='tmux split-window -h'
+
+  # 5. tmux tools (tmux-check, tmux-snapshot), deployed from DotFiles/config/tmux/bin
+  # Appended (low priority), so nothing in it can shadow a system command.
+  [[ -d "$HOME/.config/tmux/bin" ]] && path+=("$HOME/.config/tmux/bin")
 fi

@@ -1,0 +1,99 @@
+#!/bin/zsh -f
+# tmux-check: check that the *running* tmux server has the settings this
+# tmux.conf is meant to give it.
+#
+# It only reads. It never changes the server or any file.
+#
+#   tmux-check            check the default tmux server
+#   tmux-check -L name    check the server on another socket (tmux -L name)
+#
+# Each line is   ✓ pass   ✗ fail (with the fix)   ~ optional / couldn't check.
+# "~" lines never count as failures. Exit status = number of failures.
+#
+# Why it exists: tmux reads tmux.conf only when the server starts, and
+# `source-file` (prefix r) applies the lines in the file but never undoes a
+# line you deleted. So the file and the live server can quietly disagree.
+
+CONF=${TMUX_CHECK_CONF:-$HOME/.config/tmux/tmux.conf}
+SOCK=()
+[[ $1 == -L && -n $2 ]] && SOCK=(-L $2)
+
+t() { command tmux $SOCK "$@" 2>/dev/null }
+
+if [[ -t 1 ]]; then G=$'\e[32m' R=$'\e[31m' Y=$'\e[33m' D=$'\e[2m' B=$'\e[1m' N=$'\e[0m'
+else G= R= Y= D= B= N=; fi
+
+fails=0
+pass() { print -r -- "  ${G}✓${N} $1" }
+fail() { print -r -- "  ${R}✗${N} $1"; print -r -- "      ${D}fix:${N} $2"; (( fails++ )) }
+skip() { print -r -- "  ${Y}~${N} $1"; print -r -- "      ${D}$2${N}" }
+
+# A setting that's live but has no line in the file disappears on the next
+# server start, so point that out.
+infile() { [[ -r $CONF ]] && grep -Eq -- "$1" "$CONF" }
+filenote() {
+  infile "$1" || print -r -- "      ${Y}note:${N} set in the server but not in ${CONF/#$HOME/~}; it will be gone after a restart."
+}
+
+if ! t has-session; then
+  print -r -- "${R}No tmux server is running${SOCK:+ on socket $SOCK[2]}.${N} Start one (tm), then run tmux-check again."
+  exit 1
+fi
+
+P=$(t show -gv prefix); P=${P:-C-b}
+
+# ---------------------------------------------------------------- copying
+print -r -- "${B}Copying${N}"
+if [[ $OSTYPE == darwin* ]]; then want=pbcopy
+elif (( $+commands[wl-copy] )); then want=wl-copy
+elif (( $+commands[xclip] )); then want='xclip -selection clipboard'
+else want=; fi
+
+v=$(t show -sv copy-command)
+if [[ -n $v ]]; then
+  pass "copy-command is '$v': a mouse drag or Enter in copy mode reaches the system clipboard"; filenote 'copy-command'
+elif [[ -n $want ]]; then
+  fail "copy-command is empty: copies stay inside tmux" "set -s copy-command '$want'"
+else
+  skip "copy-command is empty" "no clipboard tool found (pbcopy / wl-copy / xclip); copies stay inside tmux"
+fi
+
+# ------------------------------------------------- Claude Code's tmux lines
+print -r -- ""
+print -r -- "${B}Optional: Claude Code's tmux lines${N} ${D}(Shift+Enter, desktop notifications; code.claude.com/docs/en/terminal-config#configure-tmux)${N}"
+opt() { if [[ $2 == yes ]]; then pass "$1"; else skip "$1 is off" "optional: $3"; fi }
+v=$(t show -gv allow-passthrough); opt "allow-passthrough" ${${${(M)v:#(on|all)}:+yes}:-no} "set -g allow-passthrough on"
+v=$(t show -sv focus-events);      opt "focus-events"      ${${${(M)v:#on}:+yes}:-no}       "set -g focus-events on"
+v=$(t show -sv extended-keys);     opt "extended-keys"     ${${${(M)v:#(on|always)}:+yes}:-no} "set -s extended-keys on  (+ set -as terminal-features 'xterm*:extkeys')"
+
+# ------------------------------------------------------------- key bindings
+print -r -- ""
+print -r -- "${B}Key bindings${N} ${D}(prefix is $P)${N}"
+
+r=$(t list-keys -T prefix r)
+fixr="bind r source-file ~/.config/tmux/tmux.conf \\; display-message 'tmux.conf reloaded'"
+if [[ $r == *source-file* ]]; then
+  f=${${r#*source-file }%% *}; f=${f//\"/}; f=${~f}
+  if [[ -r $f ]]; then pass "$P r reloads ${f/#$HOME/~}"
+  else fail "$P r reloads $f, which doesn't exist" $fixr; fi
+else
+  fail "$P r doesn't reload the config" $fixr
+fi
+
+c=$(t list-keys -T prefix c)
+if [[ $c == *pane_current_path* ]]; then pass "$P c opens new windows in the current pane's folder"
+else fail "$P c opens new windows in the session's start folder" "bind c new-window -c \"#{pane_current_path}\""; fi
+
+# L is the HJKL resize set, so "last session" lives on Tab.
+l=$(t list-keys -T prefix Tab)
+if [[ $l == *switch-client\ -l* ]]; then pass "$P Tab jumps to the last session"
+else
+  what=${${l##*-T prefix }#Tab}; what=${(j: :)${(z)what}}
+  [[ $l == "unknown key"* ]] && what=
+  fail "$P Tab is taken by: ${what:-nothing (unbound)}" "bind Tab switch-client -l"
+fi
+
+print -r -- ""
+if (( fails == 0 )); then print -r -- "${G}${B}All good.${N}"
+else print -r -- "${R}${B}$fails to fix.${N} Edit tmux.conf in your dotfiles repo, deploy it, press $P r, then run tmux-check again."; fi
+exit $fails

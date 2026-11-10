@@ -1,0 +1,121 @@
+#!/bin/zsh -f
+# tmux-snapshot: write a restore script for every session, window and
+# Claude Code conversation on your running tmux server.
+#
+#   tmux-snapshot           save a snapshot (prints what it saw)
+#   tmux-snapshot list      list saved snapshots
+#
+# Keeps the newest 5 snapshots (TMUX_SNAPSHOT_KEEP to change) plus latest.zsh.
+#
+# It only READS tmux. Restoring is a separate, deliberate step:
+#   zsh ~/.local/state/tmux-snapshots/latest.zsh
+# which recreates any session that doesn't exist yet (existing ones are
+# left alone), with the same window names, folders, and
+# `claude --resume <id>` typed into each window that had Claude running.
+#
+# Works with any number of Claude Code configs (e.g. `myclaude`, which sets
+# CLAUDE_CONFIG_DIR=~/.config/claude-personal). Each Claude process is asked
+# which config it runs with (its own CLAUDE_CONFIG_DIR, default ~/.claude),
+# and a non-default one is restored as `CLAUDE_CONFIG_DIR=<dir> claude
+# --resume <id>`, so the conversation is found again.
+#
+# Where the Claude id comes from: <config>/sessions/<pid>.json, a file
+# Claude Code keeps for each running process. That file is internal to
+# Claude Code, not a documented interface, so if it's missing the window is
+# still restored, just without the resume line.
+
+zmodload zsh/datetime
+DIR=${XDG_STATE_HOME:-$HOME/.local/state}/tmux-snapshots
+CONF=${TMUX_SNAPSHOT_CONF:-$HOME/.config/tmux/tmux.conf}
+KEEP=${TMUX_SNAPSHOT_KEEP:-5}   # snapshots kept; older ones are deleted
+t() { command tmux "$@" 2>/dev/null }
+
+if [[ $1 == list ]]; then
+  ls -1t $DIR/*.zsh 2>/dev/null | grep -v latest.zsh || print "no snapshots yet"
+  exit 0
+fi
+
+t has-session || { print -u2 "No tmux server is running; nothing to snapshot."; exit 1 }
+
+mkdir -p $DIR
+stamp=$(strftime %Y-%m-%d-%H%M%S $EPOCHSECONDS)
+out=$DIR/$stamp.zsh
+
+DEFAULT_CFG=$HOME/.claude
+
+# $1 = claude pid → its config dir. Asks the process itself (its
+# CLAUDE_CONFIG_DIR, readable for your own processes via `ps -E`); if that
+# fails, looks for the pid's session file in ~/.claude and ~/.config/claude*.
+claude_config() {
+  local d
+  d=$(ps -E -o command= -p $1 2>/dev/null | tr ' ' '\n' | sed -n 's/^CLAUDE_CONFIG_DIR=//p' | head -1)
+  [[ -n $d ]] && { print -r -- ${d%/}; return }
+  for d in $DEFAULT_CFG ${XDG_CONFIG_HOME:-$HOME/.config}/claude*(N/); do
+    [[ -r $d/sessions/$1.json ]] && { print -r -- $d; return }
+  done
+  print -r -- $DEFAULT_CFG
+}
+
+# $1 = pane's shell pid → sets CID (session id, or "new") and CCFG (config
+# dir, empty for the default) if Claude runs in that pane.
+claude_id() {
+  local kid f
+  CID= CCFG=
+  for kid in $(pgrep -P $1); do
+    [[ $(ps -o comm= -p $kid) == *claude* ]] || continue
+    CCFG=$(claude_config $kid)
+    f=$CCFG/sessions/$kid.json
+    [[ -r $f ]] && CID=$(grep -o '"sessionId":"[^"]*"' $f | head -1 | cut -d'"' -f4)
+    if [[ -z $CID ]]; then   # fall back to `claude --resume <id>` in its arguments
+      CID=$(ps -o command= -p $kid | grep -oE -- '--resume [0-9a-f-]{36}' | cut -d' ' -f2)
+    fi
+    CID=${CID:-new}
+    [[ $CCFG == $DEFAULT_CFG ]] && CCFG=
+    return
+  done
+}
+
+{
+  print -r -- "#!/bin/zsh -f"
+  print -r -- "# tmux snapshot taken $(strftime '%a %d %b %Y %H:%M' $EPOCHSECONDS)"
+  print -r -- "# Restore: zsh ${out/#$HOME/~}   (existing sessions are skipped)"
+  print -r -- "T=(command tmux -f ${(q)CONF})"
+  print -r -- 'w() {  # session index name dir [claude-id [claude-config-dir]]'
+  print -r -- '  if ! $T has-session -t "=$1" 2>/dev/null; then'
+  print -r -- '    $T new-session -d -s "$1" -n "$3" -c "$4" || return'
+  print -r -- '    $T move-window -s "=$1:" -t "=$1:$2" 2>/dev/null'
+  print -r -- '    NEW[$1]=1'
+  print -r -- '  elif (( ${+NEW[$1]} )); then'
+  print -r -- '    $T new-window -d -t "=$1:$2" -n "$3" -c "$4"'
+  print -r -- '  else return; fi'
+  print -r -- '  local cl=claude'
+  print -r -- '  [[ -n $6 ]] && cl="CLAUDE_CONFIG_DIR=${(q)6} claude"'
+  print -r -- '  [[ $5 == new ]] && $T send-keys -t "=$1:$2" "$cl" Enter'
+  print -r -- '  [[ -n $5 && $5 != new ]] && $T send-keys -t "=$1:$2" "$cl --resume $5" Enter'
+  print -r -- '  print -r -- "  restored $1:$2 $3${5:+  (claude${6:+, ${6:t}})}"'
+  print -r -- '}'
+  print -r -- 'typeset -A NEW'
+} >| $out
+
+n=0 c=0 warn=()
+t list-windows -a -F '#{session_name}	#{window_index}	#{window_name}	#{pane_current_path}	#{pane_pid}	#{window_panes}' |
+while IFS=$'\t' read -r s i name dir pid panes; do
+  claude_id $pid
+  print -r -- "w ${(q)s} $i ${(q)name} ${(q)dir}${CID:+ $CID}${CCFG:+ ${(q)CCFG}}" >> $out
+  (( n++ )); [[ -n $CID ]] && (( c++ ))
+  (( panes > 1 )) && warn+=("$s:$i has $panes panes; only the first is saved")
+  printf '  %-10s %2s  %-16s %s\n' $s $i ${name[1,16]} "${CID:+claude ${CID[1,8]}…${CCFG:+ [${CCFG:t}]}}"
+done
+print -r -- 'print "done. tmux ls to see them; tm <name> to attach."' >> $out
+
+cp -f $out $DIR/latest.zsh
+
+# Keep only the newest $KEEP snapshots (latest.zsh is a copy, never pruned)
+old=($DIR/<->-<->-<->-<->.zsh(N.om[$(( KEEP + 1 )),-1]))
+(( $#old )) && rm -f -- $old
+
+print -r -- ""
+print -r -- "Saved $n windows ($c with Claude) → ${out/#$HOME/~}"
+(( $#old )) && print -r -- "Pruned ${#old} old snapshot(s); keeping the newest $KEEP."
+print -r -- "Restore after a reboot: zsh ${DIR/#$HOME/~}/latest.zsh"
+for x in $warn; print -r -- "note: $x"

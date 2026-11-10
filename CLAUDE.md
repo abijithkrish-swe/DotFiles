@@ -128,6 +128,17 @@ Never hardcode secrets; use the vault or environment variables.
 
 Smart session: `tm [name]` (attach or create; defaults to `main`). `tl` list, `tk <name>` kill, `tka` kill server. Splits: `tms` (vertical), `tml` (horizontal). Forces XDG config at `~/.config/tmux/tmux.conf`.
 
+Keys:
+- `C-b Tab` jumps to the last session. `C-b H/J/K/L` resizes.
+- `C-b c` and the splits open in the current pane's folder.
+- Copy mode uses vi keys (`v`/`y`, mouse drag), and copies go to the macOS clipboard (`copy-command pbcopy`).
+- Windows renumber when one closes.
+
+Tools in `~/.config/tmux/bin` (appended to PATH):
+- `tmux-check` reports whether the running server matches `tmux.conf`, with fixes.
+- `tmux-snapshot` saves sessions, windows, folders and Claude conversations into a restore script. It handles any Claude config (e.g. `myclaude`) by reading each process's `CLAUDE_CONFIG_DIR`, and keeps the newest 5 snapshots (`TMUX_SNAPSHOT_KEEP`).
+- Restore with `zsh ~/.local/state/tmux-snapshots/latest.zsh`.
+
 ### fzf (`44-fzf.zsh`) — opt-in toggles
 
 Off by default. Set before sourcing zshrc:
