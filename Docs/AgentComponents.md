@@ -388,6 +388,46 @@ into Claude configs. The sandbox profile is generated per run by toolshelf-mcp
 2. Update the manifest line, review the diff, commit.
 3. Do this deliberately (e.g. monthly). Pinned digests don't self-update.
 
+### Run a project (sandbox or docker mode)
+
+You ask the agent in plain words. It calls toolshelf `run` with the right
+arguments. Cheat sheet: `devhelp toolshelf`.
+
+1. **Pick the mode.**
+   - **Sandbox** (default) is for your own projects. It uses your approved
+     installs and keeps caches between runs.
+   - **Docker** is for untrusted code: freshly cloned repos, scripts from the
+     internet, unreviewed generated code, dependencies with install scripts.
+     It uses one tool per run, with that tool's pinned image.
+2. **Make sure the project qualifies.**
+   - The folder (or a parent) has `.git`, `.toolsrc`, `package.json`, `pom.xml`,
+     `build.gradle*`, `Cargo.toml`, `go.mod`, `pyproject.toml`, `Makefile`, or an
+     empty `.toolshelf`.
+   - The versions it needs are approved (`components_check`). For docker mode
+     they also need a `docker=` image (`components_images`).
+3. **Pin versions per project (optional).** Put them in `.toolsrc`, for example
+   `JDK=17` and `MAVEN=3.9`. `run` uses it when no tools are given, and
+   `toolup` uses it in your shell.
+4. **Ask**, for example:
+   - "Build and test ~/Projects/Personal/app with JDK 17 and Maven"
+   - "This repo is untrusted; run its tests in docker, with network for dependencies"
+
+   Docker mode also needs Colima running (`costart`).
+5. **Check results:**
+   - The reply has the exit code and the last 8 KB of output.
+   - The full log is in `~/.local/state/toolshelf/runs/<id>.log`.
+   - Requests for missing versions show up in `components_requests`.
+
+Typical arguments:
+
+```
+run cwd: ~/Projects/Personal/app  tools: {"jdk": "17", "maven": ""}  command: mvn -q test
+run cwd: ~/Projects/x  tools: {"python": ""}
+    command: python3 -m venv .venv && .venv/bin/pip install -q -r requirements.txt && .venv/bin/pytest -q
+run cwd: ~/Projects/untrusted  tools: {"node": "22"}  mode: docker  network: proxy
+    command: npm ci --silent && npm test
+```
+
 ### Add a new coding agent
 
 1. Register the MCP server (absolute node path + absolute `dist/index.js`).

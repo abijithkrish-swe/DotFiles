@@ -157,7 +157,7 @@ Auto-prefers `fd` then `rg` for the default file source.
 
 ### devhelp system (`zz-devhelp.zsh`)
 
-`devhelp <topic>` shows cheatsheets. Topics auto-loaded from `~/.zsh.d/help/*.zsh`. Available: `bat`, `colima`, `components` (approved versions, manifest flags), `docker-basics`, `eza`, `fd`, `fzf-basic/intermediate/advanced`, `git`, `git-advanced`, `gradle`, `jdk`, `k8s`, `maven`, `mysql`, `node`, `obs`, `python`, `redis`, `rust`, `secrets`, `tmux`, `vim`, `vim-advanced`, `default`. List with `devhelp_list`.
+`devhelp <topic>` shows cheatsheets. Topics auto-loaded from `~/.zsh.d/help/*.zsh`. Available: `bat`, `colima`, `components` (approved versions, manifest flags), `docker-basics`, `eza`, `fd`, `fzf-basic/intermediate/advanced`, `git`, `git-advanced`, `gradle`, `jdk`, `k8s`, `maven`, `mysql`, `node`, `obs`, `python`, `redis`, `rust`, `secrets`, `tmux`, `toolshelf` (running projects via agents: sandbox vs docker mode), `vim`, `vim-advanced`, `default`. List with `devhelp_list`.
 
 ### Zero-trust / Proxy (`01-security.zsh`)
 
