@@ -12,7 +12,12 @@ here="${${(%):-%x}:A:h}"
 repo="${here:h:h}"
 live=false; [[ "${1:-}" == "--live" ]] && live=true
 source "$repo/DotFiles/zsh.d/70-components-core.zsh"
+# Interactive shells have global aliases (42-bat.zsh: --help); zsh expands them
+# while parsing a sourced file, so load the module the way a terminal does.
+alias -g -- --help='--help 2>&1 | cat'
 source "$repo/DotFiles/zsh.d/70-components-dockrun.zsh"
+(( $+functions[dockrun] )) || { print -u2 "XX  module failed to load with the --help global alias"; exit 1; }
+unalias -- --help
 
 local -i ok=0 bad=0
 local out rc

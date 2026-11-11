@@ -38,7 +38,9 @@ dockrun() {
       --internet)  net=internet ;;
       -p|--port)   [[ -n "${2:-}" ]] || { _dockrun_usage >&2; return 2; }; ports+=("$2"); shift ;;
       -n|--dry-run) dry=true ;;
-      -h|--help)   _dockrun_usage; return 0 ;;
+      # quoted: 42-bat.zsh has a global alias for --help, which zsh would
+      # expand inside this pattern while parsing the file
+      -h|'--help') _dockrun_usage; return 0 ;;
       --)          shift; break ;;
       -*)          print -u2 "dockrun: unknown option $1"; _dockrun_usage >&2; return 2 ;;
       *)           spec="$1"; shift; break ;;
@@ -171,4 +173,4 @@ _dockrun_comp() {
   for k in ${(k)CM_DOCKER}; do specs+=("${k%%:*}" "${k%%:*}=${k#*:}"); done
   compadd -- ${(u)specs} --net --internet -p -n
 }
-(( $+functions[compdef] )) && compdef _dockrun_comp dockrun
+if (( $+functions[compdef] )); then compdef _dockrun_comp dockrun; fi
