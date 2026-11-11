@@ -272,8 +272,16 @@ Code config on the machine.
 |---|---|---|
 | Claude Code (default, `~/.claude`) | `~/.claude/CLAUDE.md` imports `@~/.config/agents/AGENTS.md` | ✅ |
 | Claude Code (personal, `myclaude` → `~/.config/claude-personal`) | `CLAUDE.md` in that dir, same import | ✅ |
-| Codex | `~/.codex/AGENTS.md` | later |
+| Codex (CLI, and the Codex part of the ChatGPT app; both use `~/.codex`) | `~/.codex/AGENTS.md` | next |
+| Claude app (Chat / Cowork) | toolshelf's server instructions (below) | ✅ |
 | Copilot / others | their global instructions file | not planned for now |
+
+**Every MCP client also gets the rules from toolshelf itself.** It sends a
+compact copy (`toolshelf-mcp/src/instructions.ts`, about 280 tokens) as MCP
+server instructions at connect. So an app that never reads `AGENTS.md`, like
+the Claude app, still has them. Keep the two in sync: a rule that matters for
+tool use goes in both. In Claude Code they overlap, which costs about 280
+tokens a session.
 
 ### Claude Code ✅
 
