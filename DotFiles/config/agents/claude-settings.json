@@ -38,7 +38,13 @@
       "Bash(cargo install:*)",
       "Bash(sdk install:*)",
       "Bash(nvm install:*)",
-      "Bash(softwareupdate:*)"
+      "Bash(softwareupdate:*)",
+      "Edit(~/.config/agents/**)",
+      "Edit(~/.config/components/**)",
+      "Edit(~/.claude/settings.json)",
+      "Edit(~/.claude/settings.local.json)",
+      "Edit(~/.config/claude-personal/settings.json)",
+      "Edit(~/.config/claude-personal/settings.local.json)"
     ]
   },
   "hooks": {

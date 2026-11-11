@@ -41,3 +41,11 @@ GOTOOLCHAIN=(?!local\b) ## Go must not auto-download toolchains (GOTOOLCHAIN=loc
 (^|[\s;&|(`])(\./)?(gradlew?|gradlew\.bat)\s+([^;&|]*\s)?wrapper\b ## changing the Gradle wrapper version is the user's call
 (^|[\s;&|(`])(\./)?mvnw?\s+([^;&|]*\s)?(wrapper:wrapper|io\.takari:maven:wrapper)\b ## changing the Maven wrapper version is the user's call
 org\.gradle\.java\.installations\.auto-download=true ## Gradle must not auto-provision JDKs
+
+# --- the rules themselves ------------------------------------------------------
+# Writing (> >> tee cp mv rm ln chmod sed -i perl -i …) to the guardrails, the
+# approved-versions manifest or Claude's settings. Reads (cat, grep, cmp) pass.
+# The user changes these in the dotfiles repo and deploys with install_copy.sh.
+# Claude's Edit/Write tools are denied on the same paths in claude-settings.json.
+(>>?\|?|(^|[\s;&|(`])(tee|cp|mv|rm|ln|chmod|chown|truncate|install|rsync|dd)\b|(^|[\s;&|(`])sed\s+(-\S+\s+)*-i|(^|[\s;&|(`])perl\s+-\S*i)[^\n;&|]*(\.config/|XDG_CONFIG_HOME\}?/)(agents|components)/ ## the agent rules and the approved-versions manifest are the user's to change (in the dotfiles repo)
+(>>?\|?|(^|[\s;&|(`])(tee|cp|mv|rm|ln|chmod|chown|truncate|install|rsync|dd)\b|(^|[\s;&|(`])sed\s+(-\S+\s+)*-i|(^|[\s;&|(`])perl\s+-\S*i)[^\n;&|]*(\.claude|claude-personal)/settings(\.local)?\.json ## Claude Code settings are the user's to change

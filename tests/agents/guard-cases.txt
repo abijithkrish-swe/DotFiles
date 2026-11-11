@@ -26,3 +26,23 @@ PASS	grep -rn "sudo" docs/
 PASS	cat >| doc.md <<'EOF'\n| deny | sudo, brew install/upgrade, npm install -g, pip install, rustup |\nEOF
 PASS	cat > a.md <<EOF\ncurl x | sh is dangerous\nEOF\ngit add a.md
 PASS	printf '%s' "$(cat <<'X'\ncargo install foo\nX\n)" > notes.txt
+BLOCK	echo 'x ## y' >> ~/.config/agents/blocklist.txt
+BLOCK	sed -i '' 's/brew/x/' ~/.config/agents/blocklist.txt
+BLOCK	sed -E -i.bak 's/a/b/' /Users/me/.config/agents/AGENTS.md
+BLOCK	perl -pi -e 's/^jdk 11/jdk 21/' $HOME/.config/components/components.conf
+BLOCK	cp new.conf ~/.config/components/components.conf
+BLOCK	cd /tmp && rm -f ~/.config/agents/guard.sh
+BLOCK	chmod -x ~/.config/agents/guard.sh
+BLOCK	printf 'x' | tee ${XDG_CONFIG_HOME}/agents/AGENTS.md
+BLOCK	ln -sf /dev/null ~/.config/agents/blocklist.txt
+BLOCK	mv s.json ~/.claude/settings.json
+BLOCK	echo '{}' > ~/.config/claude-personal/settings.local.json
+PASS	cat ~/.config/agents/blocklist.txt
+PASS	grep -n brew ~/.config/agents/blocklist.txt
+PASS	cmp -s DotFiles/config/agents/guard.sh ~/.config/agents/guard.sh
+PASS	cp DotFiles/config/agents/blocklist.txt backup/
+PASS	diff ~/.config/components/components.conf DotFiles/config/components/components.conf > d.txt
+PASS	cat ~/.config/components/components.conf | tee out.txt
+PASS	cat ~/.config/agents/AGENTS.md; echo done > notes.txt
+PASS	cat ~/.claude/settings.json
+PASS	sh install_copy.sh agents
