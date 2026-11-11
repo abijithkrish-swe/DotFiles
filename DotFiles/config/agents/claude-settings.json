@@ -44,7 +44,13 @@
       "Edit(~/.claude/settings.json)",
       "Edit(~/.claude/settings.local.json)",
       "Edit(~/.config/claude-personal/settings.json)",
-      "Edit(~/.config/claude-personal/settings.local.json)"
+      "Edit(~/.config/claude-personal/settings.local.json)",
+      "Edit(~/.codex/AGENTS.md)",
+      "Edit(~/.codex/config.toml)",
+      "Edit(~/.codex/rules/**)",
+      "Edit(~/Library/Application Support/Claude/claude_desktop_config.json)",
+      "Edit(~/.cursor/mcp.json)",
+      "Read(~/.codex/auth.json)"
     ]
   },
   "hooks": {

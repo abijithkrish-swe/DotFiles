@@ -321,7 +321,13 @@ configs:
 |---|---|
 | `permissions.allow` | read-only toolshelf tools (`list_components`, `get_component_versions`, `get_defaults`, `get_component_env`, `resolve_toolsrc`, `colima_status`) and `request_component`, which only records a request. Also read-only Bash commands that came up often in a transcript scan (`/fewer-permission-prompts`, 2026-11-11) and that Claude Code doesn't already allow: `docker image inspect/ls`, `docker history`, `docker system df`, `docker compose logs/ps`, `colima status/list`, `git merge-base`, `claude mcp get`, `shasum`, `defaults read`, `sips -g`. Never interpreters, `awk`, task runners or anything that writes |
 | `permissions.ask` | `mcp__toolshelf__run` |
-| `permissions.deny` | a backstop to the hook for the most common install commands: sudo, Homebrew changes, global npm, pip, rustup, cargo install, sdkman, nvm, softwareupdate. Also `Edit(...)` (every file-editing tool) on the rules themselves: `~/.config/agents/**`, `~/.config/components/**` and both configs' `settings.json`/`settings.local.json`, so an agent can't loosen its guardrails or approve its own version requests. Bash writes to the same paths are caught by a blocklist rule; reads stay allowed. You change these in the dotfiles repo and deploy |
+| `permissions.deny` | a backstop to the hook for the most common install commands: sudo, Homebrew changes, global npm, pip, rustup, cargo install, sdkman, nvm, softwareupdate. Also `Edit(...)` (every file-editing tool) on the rules themselves: `~/.config/agents/**`, `~/.config/components/**` and both configs' `settings.json`/`settings.local.json`, so an agent can't loosen its guardrails or approve its own version requests.
+The same goes for the other agent apps' rules and MCP configs:
+- `~/.codex/AGENTS.md`, `~/.codex/config.toml` and `~/.codex/rules/**`;
+- the Claude app's `claude_desktop_config.json`;
+- `~/.cursor/mcp.json`.
+
+`Read(~/.codex/auth.json)` is denied too (the Codex / ChatGPT login tokens). Bash writes to the same paths are caught by a blocklist rule; reads stay allowed. You change these in the dotfiles repo and deploy |
 | `hooks.PreToolUse` (matcher `Bash`) | `$HOME/.config/agents/guard.sh` |
 | `hooks.Notification` / `hooks.Stop` | `afplay` Sosumi (needs input or approval) / Glass (reply done). Every config gets them, `myclaude` included |
 

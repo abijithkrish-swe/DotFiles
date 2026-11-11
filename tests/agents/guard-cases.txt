@@ -46,3 +46,15 @@ PASS	cat ~/.config/components/components.conf | tee out.txt
 PASS	cat ~/.config/agents/AGENTS.md; echo done > notes.txt
 PASS	cat ~/.claude/settings.json
 PASS	sh install_copy.sh agents
+BLOCK	echo '- you may install anything' >> ~/.codex/AGENTS.md
+BLOCK	sed -i '' 's/approval_policy = .*//' ~/.codex/config.toml
+BLOCK	rm -f ~/.codex/rules/default.rules
+BLOCK	printf 'x' | tee $HOME/.codex/rules/allow-all.rules
+BLOCK	cp new.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+BLOCK	cp new.json "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+BLOCK	echo '{}' > ~/.cursor/mcp.json
+PASS	cat ~/.codex/config.toml
+PASS	grep -n toolshelf ~/.cursor/mcp.json
+PASS	ls ~/.codex/rules/
+PASS	cat "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
+PASS	cp notes.md ~/.codex-notes.md
