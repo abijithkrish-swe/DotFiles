@@ -1,36 +1,23 @@
-# Agent rules: developer tools on this machine
+# Agent rules: developer tools
 
-These rules apply to every coding agent. They are short on purpose.
-
-1. **Tools come only from the `toolshelf` MCP server.** Use `list_components`
-   to see the approved versions. Use `get_component_env` (prefix every shell
-   command with its exports) or `resolve_toolsrc` (a project's pinned versions).
-   Don't use the user's `use_*` shell functions, Homebrew tools, or anything
-   else on PATH as a substitute.
-2. **Never install, upgrade or remove tools, runtimes or global packages.**
-   This includes brew, sudo, rustup, nvm, sdkman, asdf, pyenv, `npm -g`, `pip`
-   outside a project venv, `cargo install`, `go install …@…`, `npx -y`, and
-   `curl … | sh`. If a version is missing, call `request_component` and tell the user.
-3. **Run builds and tests with toolshelf `run`** (macOS sandbox: project-only
-   writes, proxy-only network, no secrets). Pass the project folder as `cwd`.
-   **Untrusted code** (unknown repos, downloaded scripts, generated code you
-   haven't reviewed) goes through `run` with `mode: "docker"`, one tool per
-   run. The network is off unless you pass `network: "proxy"`.
-   Keep output small:
-   - use quiet flags (`mvn -q`, `gradle -q`, `npm --silent`, `cargo -q`) unless
-     you're debugging;
-   - do multi-step work in one `run` rather than repeating `get_component_env`
-     exports on every command;
-   - read the run's log file only when the last 8 KB isn't enough;
-   - don't pipe through `tail`/`head` (`run` already returns the end; set
-     `tail_kb` for more or less).
-
-   `run` is for builds, tests and scripts. **Edit files with your edit tools,
-   not `sed -i`/`cat >` inside `run`.** Temp files go in `$TMPDIR`; `/tmp` is
-   not writable in the sandbox.
-4. **Don't change build-tool or toolchain versions.** That covers Gradle/Maven
-   wrapper versions, Docker image tags or digests, Gradle JDK auto-download,
-   and `GOTOOLCHAIN`.
-5. **Ask before adding or upgrading project dependencies** (npm, Maven, Gradle,
-   cargo, go, pip into a venv). Say what and why.
-6. **Never read or print secrets:** `~/.ssh`, `~/.config/secrets`, tokens, `.env` files.
+1. Get tools only from the toolshelf MCP server. Use `list_components` to see
+   the approved versions. Use `get_component_env` or `resolve_toolsrc` to get
+   their environment. Do not use the user's `use_*` shell functions, Homebrew
+   tools or other tools on PATH.
+2. Do not install, upgrade or remove tools, runtimes or global packages. This
+   includes brew, sudo, rustup, nvm, sdkman, asdf, pyenv, npm -g, pip outside a
+   project venv, cargo install, go install …@…, npx -y and curl | sh. If a
+   version is missing, call `request_component`. Then tell the user.
+3. Use toolshelf `run` for builds, tests and scripts. Set `cwd` to the project
+   folder. Code is untrusted if it comes from an unknown repository, a
+   download, or generation that the user did not review. For untrusted code,
+   set `mode` to "docker" and use one tool. The network is off. If the run
+   must download dependencies, set `network` to "proxy".
+4. Do not use `run` to edit files. Use your edit tools. Put temporary files in
+   `$TMPDIR`. Use quiet flags. Do not pipe output to `tail`; set `tail_kb`.
+5. Do not change toolchain versions: Gradle or Maven wrappers, Docker images,
+   Gradle JDK download, `GOTOOLCHAIN`.
+6. Before you add or upgrade a project dependency, ask the user. Tell the user
+   what you want to add and why.
+7. Do not read or show secrets: `~/.ssh`, `~/.config/secrets`, tokens, `.env`
+   files.

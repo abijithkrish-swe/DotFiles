@@ -43,6 +43,21 @@ What the agent sends
   Optional: timeout_seconds (default 600, max 3600), tail_kb (output returned,
   default 8). Omit `tools` to use the project's .toolsrc.
 
+  Keeping it cheap (the rules ask agents for this):
+  • quiet flags (mvn -q, gradle -q, npm --silent, cargo -q) unless debugging
+  • several steps in one run, not one run per command
+  • the reply is the last 8 KB; agents read the log only when that's not enough,
+    and use tail_kb rather than piping through tail/head
+  • edits go through the agent's edit tools, not sed -i / cat > inside run
+
+Agent rules
+-----------
+  One file: ~/.config/agents/AGENTS.md (repo: DotFiles/config/agents/AGENTS.md).
+  Claude Code imports it; toolshelf sends it to every other app (Claude app,
+  Codex / ChatGPT …) when they connect. Edit in the repo, deploy, reconnect.
+  Written in ASD-STE100 style, kept under 1600 bytes:
+  perl tests/agents/agents-md-test.pl
+
 Project requirements
 --------------------
   • cwd must be a project: it (or a parent ≥ 2 levels under $HOME) contains

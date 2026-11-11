@@ -260,13 +260,29 @@ Code config on the machine.
 
 ### Rules file (all agents) ✅
 
-**Source:** `DotFiles/config/agents/AGENTS.md`. It is six short rules; long rule files get ignored:
+**Source:** `DotFiles/config/agents/AGENTS.md`. It is the single source of the
+rules, seven short ones, because long rule files get ignored:
 1. tools only via toolshelf;
 2. never install or upgrade, and use `request_component` instead;
-3. builds and tests via `run`;
-4. never change build-tool or toolchain versions;
-5. ask before adding dependencies;
-6. never read secrets.
+3. builds and tests via `run`, docker mode for untrusted code;
+4. `run` isn't for edits, temp files in `$TMPDIR`;
+5. never change build-tool or toolchain versions;
+6. ask before adding dependencies;
+7. never read secrets.
+
+**Style:** the writing rules of ASD-STE100 (Simplified Technical English), not
+its dictionary:
+- one instruction per sentence, in the imperative, with conditions first
+  ("If a version is missing, call `request_component`. Then tell the user.");
+- one name for each thing;
+- at most 25 words a sentence; lists are exempt.
+
+Why: models follow short, unambiguous imperatives most reliably.
+
+**Size limit:** 1600 bytes, because the whole file is sent in every session.
+Explanations (why quiet flags, how to batch steps) live in `devhelp toolshelf`
+instead. `perl tests/agents/agents-md-test.pl` checks the size, that the
+seven rules are present, and sentence length.
 
 | Agent | How it gets the rules | Status |
 |---|---|---|
@@ -276,12 +292,15 @@ Code config on the machine.
 | Claude app (Chat / Cowork) | toolshelf's server instructions (below) | ✅ |
 | Copilot / others | their global instructions file | not planned for now |
 
-**Every MCP client also gets the rules from toolshelf itself.** It sends a
-compact copy (`toolshelf-mcp/src/instructions.ts`, about 280 tokens) as MCP
-server instructions at connect. So an app that never reads `AGENTS.md`, like
-the Claude app, still has them. Keep the two in sync: a rule that matters for
-tool use goes in both. In Claude Code they overlap, which costs about 280
-tokens a session.
+**Every MCP client also gets the rules from toolshelf itself.** At startup
+toolshelf reads `~/.config/agents/AGENTS.md` (`$TOOLSHELF_AGENTS_MD` overrides)
+and sends it unchanged as MCP server instructions, about 360 tokens. So an app
+that never reads `AGENTS.md`, like the Claude app, still has the same rules,
+from the same file. If the file is missing, toolshelf sends a one-line
+fallback: don't install, use `run`, and tell the user that the rules file is
+missing. Claude Code gets the rules twice, through the import and through
+toolshelf. That costs about 360 tokens a session, and in return the rules
+still apply when toolshelf is down.
 
 ### Claude Code ✅
 
