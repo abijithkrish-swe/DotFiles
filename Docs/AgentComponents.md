@@ -349,8 +349,8 @@ which has its own sandbox. Revisit if Claude's direct Bash calls need confining 
 ### Claude app (Chat / Cowork) ✅
 
 - **Config:** `~/Library/Application Support/Claude/claude_desktop_config.json`, `mcpServers`.
-- **Registration:** `toolshelf-mcp/install.sh --register` writes the entry,
-  via `scripts/register.mjs`, with a backup first.
+- **Registration:** by hand. Paste the JSON from `toolshelf-mcp/install.sh
+  --print-config` into `mcpServers`, then restart the app.
 - **Rules:** toolshelf's server instructions, which are `AGENTS.md` itself.
 - **Not here:** no hook and no Claude Code permissions. Chat and Cowork have
   no shell of their own, so toolshelf `run` is their only way to execute
@@ -359,22 +359,32 @@ which has its own sandbox. Revisit if Claude's direct Bash calls need confining 
 
 The app's Code tab is Claude Code and uses `~/.claude`.
 
-### Codex (CLI, and the Codex part of the ChatGPT app): registration ✅, rules next
+### Codex (CLI, and the Codex part of the ChatGPT app): registration by hand, rules next
 
 - **Config:** both read `~/.codex/config.toml`. The ChatGPT app keeps its
   own entries there too (`node_repl`, `computer-use`, plugins, `[desktop]`).
-- **Registration:** `install.sh --register` adds or replaces only the
-  `[mcp_servers.toolshelf]` block. It edits the file as text, so comments and
-  order survive.
-- **Stale servers:** it offers to remove servers whose script is gone (here,
-  `dev-env` → the old `MyComponentsMCP`).
+- **Registration:** Codex's own command, printed by
+  `toolshelf-mcp/install.sh --print-config` with this machine's paths:
+  ```
+  codex mcp remove toolshelf; codex mcp add toolshelf --env COMPONENTS=… --env COMPONENTS_MANIFEST=… -- <node> <server>
+  ```
+  The `codex` CLI comes bundled in the ChatGPT app
+  (`/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex`); it
+  isn't on PATH. `codex mcp add` keeps the rest of `config.toml`, comments
+  included (checked on a throwaway `CODEX_HOME`).
+- **Old entries:** `codex mcp list`, then `codex mcp remove <name>`. Here
+  that's `dev-env`, the retired `MyComponentsMCP`.
 
-```toml
-[mcp_servers.toolshelf]
-command = "/Users/<you>/Components/Node/<pinned>/bin/node"
-args = ["/Users/<you>/Components/toolshelf-mcp/dist/index.js"]
-env = { COMPONENTS = "/Users/<you>/Components", COMPONENTS_MANIFEST = "/Users/<you>/.config/components/components.conf" }
-```
+### Cursor: registration by hand
+
+`~/.cursor/mcp.json`, `mcpServers`: paste the same JSON as for the Claude app
+(`install.sh --print-config`). Cursor doesn't read `AGENTS.md` globally; it
+gets the rules from toolshelf's server instructions.
+
+**Why by hand:** registering happens rarely: a new machine, a new default
+Node, a moved install. Each app's format is its own, and changes with app
+updates. Printed instructions cost no code, and you see every change.
+`install.sh` prints them on the first install and when the node path changes.
 
 Next for Codex:
 - `install_copy.sh agents` copies `AGENTS.md` to `~/.codex/AGENTS.md` and adds
