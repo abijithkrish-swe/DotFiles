@@ -176,6 +176,7 @@ Verb-based; no verb prints usage and changes nothing.
 - `agents` — merges agent guardrails into every Claude Code config (`~/.claude` and `~/.config/claude-personal`, the one `myclaude` uses):
   - `settings.json` gets toolshelf permissions (read tools allowed, `run` asks), a short allowlist of read-only Bash commands (`docker image inspect`, `colima status`, `shasum` …), install-command denies, edit denies on the rules themselves (`~/.config/agents/**`, `~/.config/components/**`, Claude `settings*.json`; Bash writes there are blocklisted too, so change them in this repo and deploy), and a `PreToolUse` Bash hook, `~/.config/agents/guard.sh`, which enforces `~/.config/agents/blocklist.txt`. It also gets sound hooks: `Notification` plays Sosumi when Claude needs input or approval, and `Stop` plays Glass when a reply is done.
   - `CLAUDE.md` gets an import of `~/.config/agents/AGENTS.md`.
+  - Codex (CLI and Codex in the ChatGPT app), if `~/.codex` exists: a copy of `AGENTS.md` at `~/.codex/AGENTS.md`, since Codex has no import. It's backed up when it differs.
 
   It merges only, makes a backup first, and is safe to re-run. `deploy` offers it. Hook tests: `tests/agents/guard-test.pl`. `AGENTS.md` is the single source of the agent rules (toolshelf also sends it to every MCP client). Write it in ASD-STE100 style and keep it under 1600 bytes; check with `perl tests/agents/agents-md-test.pl`.
 

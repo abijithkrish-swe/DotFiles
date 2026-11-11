@@ -386,13 +386,33 @@ Node, a moved install. Each app's format is its own, and changes with app
 updates. Printed instructions cost no code, and you see every change.
 `install.sh` prints them on the first install and when the node path changes.
 
-Next for Codex:
-- `install_copy.sh agents` copies `AGENTS.md` to `~/.codex/AGENTS.md` and adds
-  command rules in `~/.codex/rules/` that refuse the main install commands.
-  Those match command prefixes only, so they're weaker than the blocklist.
+- **Rules ✅:** `install_copy.sh agents` copies `AGENTS.md` to
+  `~/.codex/AGENTS.md`, because Codex has no import. Every deploy keeps it
+  current. Codex also gets the same text from toolshelf's server instructions.
 - Codex has its own shell, so its `approval_policy` / `sandbox_mode` matter.
   Keep approvals on.
 - toolshelf's sandbox hides `~/.codex`, which holds the app's login tokens.
+
+**Planned: Codex command rules** (`~/.codex/rules/*.rules`, execpolicy). What
+we know, tested with the bundled `codex execpolicy check --rules F -- <cmd>`
+(the `--` is required):
+- **Syntax:** `prefix_rule(pattern=[…], decision=…)`. The decision is
+  `allow`, `prompt` or `forbidden`; anything else is a parse error. A list
+  inside the pattern means any of those (`["brew", ["install", "upgrade"]]`).
+- **Matching:** an exact prefix of the command's words. `brew list` doesn't
+  match a `brew install` rule.
+- **Gaps:** a full path to the program (`~/.cargo/bin/cargo install`) or a
+  shell wrapper (`zsh -lc "… && cargo install …"`) doesn't match. Codex often
+  runs commands as `/bin/zsh -lc "…"`. Whether it looks inside that wrapper
+  at runtime is untested.
+
+The plan: a separate `toolshelf.rules` of `forbidden` rules for the plain
+forms (brew install/upgrade, sudo, global npm, bare pip install, cargo
+install, rustup), deployed by `agents`, with a test that runs
+`execpolicy check` on blocked and allowed commands. Documented as a partial
+speed bump, not a wall. `default.rules` is Codex's own file ("always allow"
+answers land there): leave it alone. Its one stale Flutter rule was removed
+on 2026-11-12, with a backup in `Backup/`.
 
 ### Copilot / others
 

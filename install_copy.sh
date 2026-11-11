@@ -892,8 +892,22 @@ cmd_agents() {
       say "    CLAUDE.md: + $import_line"
     fi
   done
+
+  # Codex (the CLI and Codex in the ChatGPT app): it reads ~/.codex/AGENTS.md
+  # and has no import, so it gets a copy of the same file.
+  codex_home="${CODEX_HOME:-$HOME/.codex}"
+  if [ -d "$codex_home" ]; then
+    say "   $codex_home (Codex / ChatGPT)"
+    if [ -f "$codex_home/AGENTS.md" ] && cmp -s "$AGENTS_HOME/AGENTS.md" "$codex_home/AGENTS.md"; then
+      say "    AGENTS.md: up to date"
+    else
+      backup_path_into "$codex_home/AGENTS.md" "$bkroot_home/${codex_home#"$HOME"/}/AGENTS.md"
+      cp "$AGENTS_HOME/AGENTS.md" "$codex_home/AGENTS.md"
+      say "    AGENTS.md: copied from $AGENTS_HOME/AGENTS.md"
+    fi
+  fi
   say "✅ done. Backups (if anything existed): $bkroot_home"
-  say "   Restart Claude Code sessions to pick up hooks/permissions."
+  say "   Restart Claude Code sessions, and ChatGPT for Codex, to pick up the changes."
 }
 
 # -----------------------------------------------------------------------------
