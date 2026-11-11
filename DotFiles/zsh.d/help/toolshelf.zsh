@@ -51,7 +51,9 @@ Project requirements
   • Only approved versions (components_check). Missing one? The agent records a
     request; you review with components_requests.
   • Docker mode: Colima must be running (costart); the tool's version needs a
-    docker= image in the manifest (components_images shows which).
+    docker= image in the manifest, shown as "(docker)" in jdk_list, node_list …
+    Versions without one work in sandbox mode only. components_images shows
+    which images are pulled (each downloads on its first docker run).
 
 Where things go
 ---------------

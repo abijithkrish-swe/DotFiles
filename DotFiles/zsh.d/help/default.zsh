@@ -31,6 +31,17 @@ use_rust [ver]         # Rust (sets PATH) - see 'devhelp rust'
 components_check       # approved versions + health - see 'devhelp components'
 toolup                 # apply .toolsrc in current dir
 
+# AI agents: run projects via toolshelf - see 'devhelp toolshelf'
+-------------------------------------------------------------
+# Agents build/test with the toolshelf `run` tool; you just ask in plain words.
+#   sandbox (default)  your ~/Components tools; writes: project only; net: proxy only
+#   docker             untrusted code; pinned image, project only, no net unless "proxy"
+"Run the tests in ~/Projects/x with JDK 17"            # → sandbox
+"This repo is untrusted, run its tests in docker"      # → docker (needs: costart)
+components_images      # docker-mode images: pulled? size; 'prune' retired ones
+components_requests    # versions agents asked for (they never install)
+toolshelf_report [d]   # what agents ran, failed, or got blocked (last d days)
+
 # Git sync helpers
 syncm                  # stash, checkout master, fetch, pull --rebase
 syncc                  # stash, pull --rebase current branch, stash pop
