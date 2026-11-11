@@ -346,17 +346,43 @@ with the reason. Claude sees the reason and is pointed at `request_component`.
 Not used: Claude Code's built-in `/sandbox`. Builds go through toolshelf `run`,
 which has its own sandbox. Revisit if Claude's direct Bash calls need confining too.
 
-### Codex (`~/.codex/config.toml`): later
+### Claude app (Chat / Cowork) ✅
+
+- **Config:** `~/Library/Application Support/Claude/claude_desktop_config.json`, `mcpServers`.
+- **Registration:** `toolshelf-mcp/install.sh --register` writes the entry,
+  via `scripts/register.mjs`, with a backup first.
+- **Rules:** toolshelf's server instructions, which are `AGENTS.md` itself.
+- **Not here:** no hook and no Claude Code permissions. Chat and Cowork have
+  no shell of their own, so toolshelf `run` is their only way to execute
+  anything, and its sandbox and blocklist apply.
+- **Approvals:** the app asks before each tool use. Don't "always allow" `run`.
+
+The app's Code tab is Claude Code and uses `~/.claude`.
+
+### Codex (CLI, and the Codex part of the ChatGPT app): registration ✅, rules next
+
+- **Config:** both read `~/.codex/config.toml`. The ChatGPT app keeps its
+  own entries there too (`node_repl`, `computer-use`, plugins, `[desktop]`).
+- **Registration:** `install.sh --register` adds or replaces only the
+  `[mcp_servers.toolshelf]` block. It edits the file as text, so comments and
+  order survive.
+- **Stale servers:** it offers to remove servers whose script is gone (here,
+  `dev-env` → the old `MyComponentsMCP`).
 
 ```toml
-approval_policy = "on-request"
-sandbox_mode    = "workspace-write"
 [mcp_servers.toolshelf]
 command = "/Users/<you>/Components/Node/<pinned>/bin/node"
-args    = ["/Users/<you>/Components/toolshelf-mcp/dist/index.js"]
+args = ["/Users/<you>/Components/toolshelf-mcp/dist/index.js"]
+env = { COMPONENTS = "/Users/<you>/Components", COMPONENTS_MANIFEST = "/Users/<you>/.config/components/components.conf" }
 ```
-Snippet: `toolshelf-mcp/config/codex.toml`. Rules: link `~/.codex/AGENTS.md` to
-`~/.config/agents/AGENTS.md`.
+
+Next for Codex:
+- `install_copy.sh agents` copies `AGENTS.md` to `~/.codex/AGENTS.md` and adds
+  command rules in `~/.codex/rules/` that refuse the main install commands.
+  Those match command prefixes only, so they're weaker than the blocklist.
+- Codex has its own shell, so its `approval_policy` / `sandbox_mode` matter.
+  Keep approvals on.
+- toolshelf's sandbox hides `~/.codex`, which holds the app's login tokens.
 
 ### Copilot / others
 
