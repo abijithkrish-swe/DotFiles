@@ -150,15 +150,14 @@ components_reload() {
   components_ensure_loaded && echo "components: loaded ${#CM_TOOLS} tools from $COMPONENTS_MANIFEST"
 }
 
-# components_resolve <tool> [version]
+# components_match <tool> [version] — pick the approved version, no disk check.
 # Exact version, or a unique prefix on a segment boundary ("17" → 17,
-# "3.9" → 3.9.12; "2" never matches 25). Empty → manifest default.
-# Sets CM_V (version), CM_HOME (tool home) and CM_BIN_DIR (bin dir).
-components_resolve() {
+# "3.9" → 3.9.12; "2" never matches 25). Empty → manifest default. Sets CM_V.
+components_match() {
   emulate -L zsh
-  local tool="$1" q="$2" v base cand home bindir
+  local tool="$1" q="$2" v
   local -a vers matches
-  CM_V="" CM_HOME="" CM_BIN_DIR=""
+  CM_V=""
 
   components_ensure_loaded || return 1
   if ! (( ${CM_TOOLS[(Ie)$tool]} )); then
@@ -185,6 +184,19 @@ components_resolve() {
       return 1
     fi
   fi
+  CM_V="$v"
+}
+
+# components_resolve <tool> [version]
+# components_match, then locate it on disk.
+# Sets CM_V (version), CM_HOME (tool home) and CM_BIN_DIR (bin dir).
+components_resolve() {
+  emulate -L zsh
+  local tool="$1" q="$2" v base cand home bindir
+  CM_HOME="" CM_BIN_DIR=""
+
+  components_match "$tool" "$q" || return 1
+  v="$CM_V"; CM_V=""
 
   base="$COMPONENTS/$CM_DIR[$tool]/$v"
   [[ -d "$base" ]] || { print -u2 "$tool $v: approved but missing on disk ($base)"; return 1; }

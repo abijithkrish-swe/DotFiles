@@ -55,6 +55,27 @@ Project requirements
     Versions without one work in sandbox mode only. components_images shows
     which images are pulled (each downloads on its first docker run).
 
+Doing it yourself: dockrun
+--------------------------
+Same idea as docker mode, from your shell: for open-source tools and repos
+you don't trust. The current folder is mounted at /work; nothing else from
+your Mac (home, keys, caches, Docker socket). The container is gone afterwards.
+
+  dockrun [--net|--internet] [-p PORT[:C]] [-n] <tool>[=version] ['command']
+
+  dockrun node=22 'npm ci && npm test'        no network (default)
+  dockrun --net python 'pip install x && x'   only via the zero-trust proxy
+  dockrun --internet -p 8080 node 'npx serve -l 8080'
+                                              normal network; port on 127.0.0.1
+  dockrun python                              no command: a shell inside
+  dockrun -n jdk=17 'mvn -q test'             print the docker commands only
+
+  • Images: the version's docker= pin (tab-complete shows which tools have one).
+  • Quote compound commands; unquoted, "&& npm test" would run on your Mac.
+  • The folder must be under ~ (Colima shares only your home with Docker).
+  • Nothing persists between runs: dependencies download again each time.
+  • Files the tool writes in /work are yours (it runs as your uid).
+
 Where things go
 ---------------
   logs            ~/.local/state/toolshelf/runs/<id>.log   (full output)

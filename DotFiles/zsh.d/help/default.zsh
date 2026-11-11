@@ -41,6 +41,11 @@ toolup                 # apply .toolsrc in current dir
 components_images      # docker-mode images: pulled? size; 'prune' retired ones
 components_requests    # versions agents asked for (they never install)
 toolshelf_report [d]   # what agents ran, failed, or got blocked (last d days)
+# Yourself: try untrusted code in a throwaway container (current folder = /work)
+dockrun node=22 'npm ci && npm test'    # no network; quote compound commands
+dockrun --net python 'pip install -r requirements.txt && pytest'   # proxy-only net
+dockrun --internet -p 8080 node 'npx serve -l 8080'   # UI on 127.0.0.1:8080
+dockrun python         # no command = a shell inside; -n = print docker cmds
 
 # Git sync helpers
 syncm                  # stash, checkout master, fetch, pull --rebase

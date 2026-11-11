@@ -451,6 +451,34 @@ run cwd: ~/Projects/untrusted  tools: {"node": "22"}  mode: docker  network: pro
     command: npm ci --silent && npm test
 ```
 
+### Try untrusted code yourself (`dockrun`)
+
+For open-source tools and repos you want to try without trusting them, and
+which don't ship a Docker image of their own: `dockrun` (zsh,
+`70-components-dockrun.zsh`) runs a command, or a shell, in a throwaway
+container from the manifest's pinned image for one tool, with the current
+folder at `/work`. The container settings are the same as toolshelf docker
+mode: no capabilities, no-new-privileges, your uid, cpu/memory/pids caps, a
+fresh `/tmp` as `HOME`, nothing else mounted.
+
+| Flag | Network |
+|------|---------|
+| none | `--network none` |
+| `--net` | per-run internal network + the `proxy-forwarder` image → zero-trust proxy only (same as agents' `network: proxy`) |
+| `--internet` | normal bridge network; needed for `-p PORT[:C]`, which binds `127.0.0.1` only. For machines without a local proxy |
+
+- **Refused folders:** `$HOME` itself, `/`, private dirs (`~/.ssh`, `~/.config`,
+  `~/Library` …), and anything outside `~`. Colima shares only the home folder
+  with its VM, so any other folder would mount as an empty, root-owned `/work`.
+- **`-n`** prints the docker commands without running them.
+- **Image log:** images it uses go into `images.log`, so `components_images`
+  sees them.
+- **Tests:** `zsh -f tests/components/dockrun-test.zsh [--live]`. The dry-run
+  checks need no Docker. `--live` adds real containers: isolation, exit codes,
+  capabilities.
+- **Agents never use it:** their Bash shells don't load zsh modules. They use
+  `run` with `mode: "docker"`.
+
 ### Add a new coding agent
 
 1. Register the MCP server (absolute node path + absolute `dist/index.js`).
