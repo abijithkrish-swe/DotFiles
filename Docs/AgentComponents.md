@@ -196,7 +196,7 @@ Order of checks, then the run (`toolshelf-mcp/src/sandbox.ts`):
    - **write:** project dir, sandbox caches (including a private per-run tmp), `/dev/null` and similar;
    - **read:** everything except credentials and private data: `~/.ssh`, `~/.gnupg`,
      `~/.aws`, `~/.kube`, `~/.docker`, `~/.config/{secrets,gh,docker,npm,gcloud,claude-personal}`,
-     `~/.claude*`, `~/.netrc`, `~/.npmrc`, Maven/Gradle/Cargo credential files,
+     `~/.claude*`, `~/.codex` (Codex / ChatGPT app login tokens), `~/.netrc`, `~/.npmrc`, Maven/Gradle/Cargo credential files,
      shell history (`~/.zshcache`), and all of `~/Library` (keychains, app data, cookies);
    - **network:** localhost only. That covers the zero-trust proxy and local test servers.
      There is no DNS, no direct internet, and no unix sockets, so the Docker socket is unreachable too.
