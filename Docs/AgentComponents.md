@@ -86,6 +86,17 @@ The parser rejects the whole file (with line numbers) on: unknown keys/flags,
 versions for undefined tools, duplicates, a second `default`, or a `docker=`
 image that isn't `@sha256:<64 hex>`.
 
+Two parsers read it: zsh (`70-components-core.zsh`) and toolshelf
+(`src/components.ts`). **`zsh -f tests/components/parity.zsh`** runs the
+manifests in `tests/components/cases/` plus the real one through both, and
+compares accept/reject, tools, versions + flags (sorted), images and every
+`# query:` resolution line for line. Run it after changing either parser, and
+change both together. Its first run found four differences, all fixed:
+- zsh never sorted versions (a quoting slip);
+- zsh read `@tool t dir` as `dir=dir`;
+- zsh rejected CRLF files;
+- toolshelf rejected CRLF files that contain comments.
+
 Rules for the manifest:
 
 - **A version not listed does not exist** to agents, even if its folder is on
@@ -465,7 +476,7 @@ run cwd: ~/Projects/untrusted  tools: {"node": "22"}  mode: docker  network: pro
 | 10 | **MCP tool timeouts.** Clients cap tool-call duration; long builds can exceed it. | `run` returns early with a log path; agent tails the log. |
 | 11 | **Rules are advisory for agents without hooks/sandbox** (Copilot, desktop apps). | Treat as least trusted; keep auto-approve off; rely on proxy/OS. |
 | 12 | **Pattern blocklists are bypassable** (scripts, aliases, encoded commands). | Blocklist is a speed bump; sandbox + network restriction is the real wall. |
-| 13 | **Two copies of the manifest logic** (zsh parser + Node parser). | Keep the format trivial; add a `components_check` that both sides agree on. |
+| 13 | **Two copies of the manifest logic** (zsh parser + Node parser). | Keep the format trivial; `tests/components/parity.zsh` checks that both parsers agree (24 cases incl. the real manifest). |
 
 ## Implementation order
 

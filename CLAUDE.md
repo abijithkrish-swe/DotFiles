@@ -47,6 +47,8 @@ Redis/MySQL extras: `redis_start`/`redis_stop` (aliases `rstart`/`rstop`/`rcli`)
 2. Add `<tool> <version>` to `DotFiles/config/components/components.conf`, plus `default`/`autoload` if wanted.
 3. Deploy with `install_copy.sh deploy`, then check with `components_check`.
 
+Changing the manifest *format* (the parser in `70-components-core.zsh` or toolshelf's `components.ts`) means changing both, then running `zsh -f tests/components/parity.zsh`, which must pass.
+
 A new tool type also needs a `@tool` line, and a ~15-line `7x-<tool>.zsh` wrapper over `components_activate`.
 
 ### Per-Project Versions (.toolsrc)

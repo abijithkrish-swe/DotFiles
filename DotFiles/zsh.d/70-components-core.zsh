@@ -51,6 +51,7 @@ components_load() {
 
   while IFS= read -r line || [[ -n "$line" ]]; do
     (( n++ ))
+    line="${line%$'\r'}"             # CRLF files: same as toolshelf, which trims it
     words=(${=${line%%\#*}})
     (( $#words )) || continue
 
@@ -59,6 +60,8 @@ components_load() {
       if [[ -z "$name" ]]; then errs+=("line $n: @tool needs a name"); continue; fi
       if (( ${tools[(Ie)$name]} )); then errs+=("line $n: duplicate @tool $name"); continue; fi
       for kv in "${(@)words[3,-1]}"; do
+        # key=value only: a bare "dir" must not silently mean dir=dir
+        if [[ "$kv" != ?*=* ]]; then errs+=("line $n: unknown @tool key \"$kv\""); continue; fi
         k="${kv%%=*}"; val="${kv#*=}"
         case "$k" in
           dir)   dir[$name]="$val" ;;
@@ -123,7 +126,8 @@ components_load() {
   CM_CHECK=("${(@kv)check}") CM_HOMEENV=("${(@kv)homeenv}")
   CM_DEFAULT=("${(@kv)defaults}") CM_AUTOLOAD=("${(@kv)autoload}") CM_ONPATH=("${(@kv)onpath}") CM_DOCKER=("${(@kv)docker}") CM_IMAGES=("${(@kv)images}")
   for name in "${tools[@]}"; do
-    CM_VERSIONS[$name]="${(j: :)${(on)${=versions[$name]}}}"   # numeric-aware sort
+    # numeric-aware sort; (@) + (s: :) because ${=…} doesn't split inside quotes
+    CM_VERSIONS[$name]="${(j: :)${(@on)${(s: :)versions[$name]}}}"
   done
   CM_MTIME="$(zstat +mtime -- "$file" 2>/dev/null)"
   return 0
