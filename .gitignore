@@ -5,7 +5,6 @@
 # --- Secrets (never commit) ---
 DotFiles/config/secrets/
 zshrc_backup_final
-phase1_old.zip
 
 # --- Machine-local git files (live only in ~/.config/git/) ---
 DotFiles/config/git/identity

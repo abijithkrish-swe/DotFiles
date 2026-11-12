@@ -155,7 +155,6 @@ Auto-prefers `fd` then `rg` for the default file source.
 - **zoxide** (`z` command) and **direnv** auto-init if installed (`40-navigation-search.zsh`).
 - **eza/bat/fd** alias overlays (`41–43`).
 - **starship** prompt (toggle `ENABLE_STARSHIP`, default on).
-- **NVM** support exists at `90-nvm.zsh` but disabled by default in favor of `use_node`.
 
 ### devhelp system (`zz-devhelp.zsh`)
 
@@ -188,5 +187,5 @@ Verb-based; no verb prints usage and changes nothing.
 - Java projects: JDK 11/17/25/26, Maven, Gradle, Ant available (see `components_check`). Gradle toolchains are limited to approved JDKs (`jdk_gradle_sync`); never enable auto-provisioning.
 - Rust projects: `use_rust` (standalone toolchain, no rustup).
 - Python projects: use `use_python`; user manages venvs directly (no wrapper).
-- Node projects: prefer `use_node` (component-based); NVM is present but disabled.
+- Node projects: use `use_node` (component-based; there is no nvm).
 - Proxy: corporate zero-trust proxy is active by default (`http://127.0.0.1:3128`).

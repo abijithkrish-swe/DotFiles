@@ -25,8 +25,7 @@ fi
 
 # --- Prefer config files under ~/.config/fzf/ (XDG-friendly) ----------------
 # These are standard fzf distro configs; they won't bind keys unless they contain such lines.
-[ -f "$HOME/.config/fzf/fzf.zsh" ]  && source "$HOME/.config/fzf/fzf.zsh"
-[ -f "$HOME/.config/fzf/fzf.bash" ] && source "$HOME/.config/fzf/fzf.bash"
+[ -f "$HOME/.config/fzf/fzf.zsh" ] && source "$HOME/.config/fzf/fzf.zsh"
 
 # --- Defaults (light, safe) -------------------------------------------------
 # Fast file list using ripgrep; respects .gitignore; includes dotfiles; follows symlinks.
