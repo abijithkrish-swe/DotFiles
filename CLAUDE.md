@@ -24,6 +24,7 @@ use_gradle 8.14     # Sets GRADLE_HOME (alias: gradle_use)
 use_ant 1.9         # Sets ANT_HOME (alias: ant_use)
 use_python 3.15     # PATH only — no PYTHONHOME (venv safe). Alias: python_use, py
 use_node 22         # PATH only (alias: node_use)
+use_pnpm            # PATH only; standalone pnpm binary (alias: pnpm_use)
 use_go 1.27         # Sets GOROOT (alias: go_use)
 use_rust            # PATH only; CARGO_HOME is $XDG_DATA_HOME/cargo (alias: rust_use)
 use_redis 7         # PATH + start/stop (alias: redis_use)

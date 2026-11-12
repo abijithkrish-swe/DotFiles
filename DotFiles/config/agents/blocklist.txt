@@ -24,6 +24,8 @@ xcode-select\s+--install ## installing Xcode tools is the user's call
 # --- toolchain / version managers (versions come from the components manifest)
 (^|[\s;&|(`])(rustup|sdk|nvm|fnm|volta|pyenv|rbenv|jenv|asdf|mise|rtx|goenv|n)\s+(install|use|update|upgrade|self|plugin|default|global|toolchain)\b ## versions come only from the components manifest — use request_component
 (^|[\s;&|(`])corepack\s+(enable|prepare|install|use|up)\b ## corepack downloads package managers — ask the user
+(^|[\s;&|(`])pnpm\s+(self-update|setup|env\s+(use|add|rm|remove))\b ## pnpm would update itself or install Node — versions come only from the components manifest
+(^|[\s;&|(`])pnpm\s+(dlx|create)\b ## pnpm dlx/create downloads and runs packages unasked (like npx -y)
 GOTOOLCHAIN=(?!local\b) ## Go must not auto-download toolchains (GOTOOLCHAIN=local only)
 
 # --- global / tool installs ---------------------------------------------------

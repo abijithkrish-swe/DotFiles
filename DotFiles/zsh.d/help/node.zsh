@@ -32,6 +32,18 @@ Notes:
   • npm and npx come with Node — available automatically when Node is enabled.
   • New version? Add it to the manifest first — see 'devhelp components'.
 
+pnpm (its own component: the standalone binary, no Node needed to run it)
+  use_pnpm [ver]   /  pnpm_list  /  pnpm_clear     (aliases pnpm_use, pnpm_off)
+  Install a version: download the macOS arm64 asset from github.com/pnpm/pnpm/releases,
+    mkdir -p ~/Components/Pnpm/<ver>/bin, move it there as `pnpm`, chmod +x,
+    xattr -d com.apple.quarantine it, then add "pnpm <ver> default" to the manifest.
+  Projects still need Node for scripts: use_node 22 && use_pnpm.
+  Agents: run with tools {"node": "22", "pnpm": ""}. In the sandbox pnpm's store,
+    cache and state live in ~/.cache/toolshelf/pnpm, and it never switches itself
+    to the version in a project's "packageManager" field.
+  Docker mode has no pnpm image: use node's, with corepack inside the container:
+    dockrun --net node=22 'COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm install'
+
 EOF2
 }
 

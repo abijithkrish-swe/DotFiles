@@ -58,3 +58,13 @@ PASS	grep -n toolshelf ~/.cursor/mcp.json
 PASS	ls ~/.codex/rules/
 PASS	cat "$HOME/Library/Application Support/Claude/claude_desktop_config.json"
 PASS	cp notes.md ~/.codex-notes.md
+BLOCK	pnpm self-update
+BLOCK	pnpm env use --global 22
+BLOCK	pnpm setup
+BLOCK	pnpm dlx create-vite app
+BLOCK	pnpm create vite app
+BLOCK	pnpm add -g typescript
+PASS	pnpm install && pnpm test
+PASS	pnpm add -D vitest
+PASS	pnpm run build
+PASS	pnpm exec tsc --noEmit
