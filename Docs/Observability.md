@@ -21,7 +21,7 @@ it can be changed later on purpose. Everything stays on this Mac.
 | Source | Status | How |
 |---|---|---|
 | Claude Code (`claude`, `myclaude`, the Claude app's Code tab) | ✅ | `env` block in `DotFiles/config/agents/claude-settings.json`, merged by `install_copy.sh agents` |
-| Codex (CLI, Codex in ChatGPT) | planned | OTel section in `~/.codex/config.toml` |
+| Codex (CLI, Codex in ChatGPT) | ✅ | `[otel]` section in `~/.codex/config.toml`, pasted by hand (below) |
 | toolshelf `run` | planned | traces per run (validate → profile → exec), blocked attempts |
 
 ## Claude Code settings
@@ -61,6 +61,48 @@ To change any of these, edit `claude-settings.json` → `env`, run
 `sh install_copy.sh agents` (it reports each changed value), and restart the
 sessions. To turn telemetry off entirely, set `CLAUDE_CODE_ENABLE_TELEMETRY`
 to `"0"`.
+
+## Codex settings
+
+Codex reads OTel settings only from its own `~/.codex/config.toml`, and agents
+can't edit that file (deny rules and the blocklist), so you **paste this in by
+hand**, at the end of the file. Then restart the ChatGPT app (and any `codex`
+CLI sessions):
+
+```toml
+[otel]
+environment = "local"
+log_user_prompt = false
+exporter         = { otlp-grpc = { endpoint = "http://127.0.0.1:4317" } }
+trace_exporter   = { otlp-grpc = { endpoint = "http://127.0.0.1:4317" } }
+metrics_exporter = { otlp-grpc = { endpoint = "http://127.0.0.1:4317" } }
+```
+
+| Setting | Value | Why |
+|---|---|---|
+| `exporter` | OTLP gRPC | Events: `codex.conversation_starts`, `codex.api_request`, `codex.sse_event`, `codex.tool_decision`, `codex.tool_result`, `codex.user_prompt`. |
+| `trace_exporter` | OTLP gRPC | Spans per turn and tool call, for flame graphs. |
+| `metrics_exporter` | OTLP gRPC | `codex.turn.token_usage.*`, `codex.turn.cost_microusd`, `codex.turn.e2e_duration_ms`, `codex.turn.ttft.duration_ms`, `codex.tool.call(.duration_ms)`, `codex.api_request(.duration_ms)`. Codex can also send metrics to `statsig` (OpenAI's service). Pointing this at SigNoz keeps them here. |
+| endpoint | `http://127.0.0.1:4317` | The same `127.0.0.1` reason as for Claude Code. |
+| `environment` | `local` | Codex adds it to every event; useful only to tell machines apart. |
+| `log_user_prompt` | `false` (the default) | Written out so the choice is visible. `true` would store prompt text; the reasons it's off are the same as for Claude Code's `OTEL_LOG_USER_PROMPTS`. |
+
+Left at their defaults, on purpose: `log_agent_responses`, `log_sse_deltas`
+and `log_guardian_assessments` (reply text and streaming chunks: large, and the
+same privacy concern), plus `span_attributes` and `tracestate`.
+
+**Telling the sources apart:** Codex has one config, so it needs no
+`agent.config` label. Its `service.name` says which surface ran it:
+`codex_exec` for `codex exec`, and others for the interactive CLI and the
+ChatGPT app. Claude Code uses `service.name=claude-code`, plus `agent.config`.
+
+Checked against codex-cli 0.167.0 (the build bundled in the ChatGPT app):
+- The block above loads (`codex mcp list` with it in a scratch `CODEX_HOME`),
+  and a bad exporter name fails with "unknown variant".
+- A `codex exec` run sent a `codex_exec` event to SigNoz.
+
+To turn Codex telemetry off, delete the `[otel]` section, or set the three
+exporters to `"none"`.
 
 ## What you'll find in SigNoz
 
