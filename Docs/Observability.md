@@ -22,7 +22,7 @@ it can be changed later on purpose. Everything stays on this Mac.
 |---|---|---|
 | Claude Code (`claude`, `myclaude`, the Claude app's Code tab) | ✅ | `env` block in `DotFiles/config/agents/claude-settings.json`, merged by `install_copy.sh agents` |
 | Codex (CLI, Codex in ChatGPT) | ✅ | `[otel]` section in `~/.codex/config.toml`, pasted by hand (below) |
-| toolshelf `run` | planned | traces per run (validate → profile → exec), blocked attempts |
+| toolshelf `run` | ✅ | built in (toolshelf-mcp `src/telemetry.ts`): a trace per run, a `toolshelf.blocked` event per blocklist hit. Default endpoint `http://127.0.0.1:4318`; `TOOLSHELF_OTLP_ENDPOINT=off` disables it. Details in the toolshelf README → Telemetry |
 
 ## Claude Code settings
 
@@ -140,6 +140,18 @@ exporters to `"none"`.
     `claude_code.tool` children;
   - `tool.blocked_on_user`, the time waiting for your approval, is visible
     separately from `tool.execution`.
+
+- **toolshelf** (`service.name=toolshelf`):
+  - **Traces:** `toolshelf.run` contains `toolshelf.check`, then
+    `sandbox.prepare` and `sandbox.exec` (or the `docker.*` phases). Group by
+    `agent.client` (which app ran it), `agent.config`, `toolshelf.command.name`
+    (mvn, pnpm …), `toolshelf.project` or `process.exit.code`.
+  - **RED metrics for free:** SigNoz's collector turns spans into
+    `signoz_calls_total` and `signoz_latency` per operation. That gives a rate,
+    errors and duration for every phase without any metrics code in toolshelf.
+  - **Logs:** `toolshelf.blocked`, which rule stopped which command, linked to
+    the run's trace. The guard hook's blocks (Claude Code's own Bash) are
+    still only in `blocked.jsonl`, so `toolshelf_report` shows both.
 
 ## Notes
 
