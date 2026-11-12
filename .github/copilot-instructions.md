@@ -172,5 +172,5 @@ tracked files are also recoverable via git.
 3. **Feature toggles**: Many tools use `export ENABLE_<FEATURE>=true/false` (e.g., `ENABLE_STARSHIP`, `ENABLE_FZF_BASICS`, `ENABLE_NVM`, `ENABLE_TMUX`).
 4. **XDG compliance**: All runtime state goes under `~/.zshcache/`. App configs go under `~/.config/`.
 5. **No PYTHONHOME**: Python component only modifies PATH to avoid breaking venvs.
-6. **Proxy**: Zero-trust proxy controlled by `KEEP_ZERO=true/false` in `01-security.zsh`.
+6. **Proxy**: Not set in the repo. A machine's proxy helper adds it to `~/.zshrc`; deploy moves it to `~/.zshrc.local`.
 7. **Machine-specific overrides**: Put in `~/.zshrc.local` (loaded by `99-local-overrides.zsh`, not in repo).

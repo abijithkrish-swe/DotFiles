@@ -161,9 +161,9 @@ Auto-prefers `fd` then `rg` for the default file source.
 
 `devhelp <topic>` shows cheatsheets. Topics auto-loaded from `~/.zsh.d/help/*.zsh`. Available: `bat`, `colima`, `components` (approved versions, manifest flags), `docker-basics`, `eza`, `fd`, `fzf-basic/intermediate/advanced`, `git`, `git-advanced`, `gradle`, `jdk`, `k8s`, `maven`, `mysql`, `node`, `obs`, `python`, `redis`, `rust`, `secrets`, `tmux`, `toolshelf` (running projects via agents: sandbox vs docker mode), `vim`, `vim-advanced`, `default`. List with `devhelp_list`.
 
-### Zero-trust / Proxy (`01-security.zsh`)
+### Proxy (`01-security.zsh`, `~/.zshrc.local`)
 
-`KEEP_ZERO=true` (default) enables `http_proxy`/`https_proxy=http://127.0.0.1:3128` plus a long corporate `no_proxy` list and `NODE_EXTRA_CA_CERTS` (if `~/.config/zero-trust-certs.pem` exists). Set `KEEP_ZERO=false` to disable.
+The repo sets no proxy. A machine's own proxy helper appends `http_proxy`/`https_proxy`/`no_proxy` to `~/.zshrc`; `install_copy.sh deploy` offers `[m]` to move them into `~/.zshrc.local` (never in the repo). `01-security.zsh` only sets `NODE_EXTRA_CA_CERTS` when `~/.config/zero-trust-certs.pem` exists. toolshelf and `dockrun --net` use whatever `https_proxy` is set (localhost only).
 
 ### Installer (`install_copy.sh`)
 

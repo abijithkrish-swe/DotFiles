@@ -588,7 +588,7 @@ fresh `/tmp` as `HOME`, nothing else mounted.
 | 5 | **The MCP `run` tool bypasses the agent's own permission checks.** Commands passed to an MCP tool aren't seen by Claude Code's Bash deny rules or hook. | `run` applies `blocklist.txt` itself; set `run` to "ask" in every client. |
 | 6 | **Docker ≠ host.** Linux images match versions, not exact builds; macOS binaries in `~/Components` can't run in containers. "Works in Docker, fails on host" is possible. | Docker only for untrusted code and services; real builds in sandbox mode. |
 | 7 | **Digest pinning & arch.** Single-arch digests may pull amd64 → slow emulation on Apple Silicon. | Pin the multi-arch index digest. |
-| 8 | **Proxy & certs inside sandbox/containers.** Zero-trust proxy + custom CA must be passed in, or TLS fails. | `run` injects proxy env + mounts `~/.config/zero-trust-certs.pem`; set `KEEP_ZERO=false` paths accordingly. |
+| 8 | **Proxy & certs inside sandbox/containers.** Zero-trust proxy + custom CA must be passed in, or TLS fails. | `run` injects proxy env (from `https_proxy`, localhost only; set per machine in `~/.zshrc.local`) + mounts `~/.config/zero-trust-certs.pem` when present. |
 | 9 | **Bootstrap dependency.** The MCP server needs a Node from `~/Components`. Removing that version breaks the MCP for every agent. | Mark that Node version in the manifest as `default`; retire it last. |
 | 10 | **MCP tool timeouts.** Clients cap tool-call duration; long builds can exceed it. | `run` returns early with a log path; agent tails the log. |
 | 11 | **Rules are advisory for agents without hooks/sandbox** (Copilot, desktop apps). | Treat as least trusted; keep auto-approve off; rely on proxy/OS. |
