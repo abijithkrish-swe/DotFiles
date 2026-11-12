@@ -73,6 +73,7 @@ CLI sessions):
 [otel]
 environment = "local"
 log_user_prompt = false
+tool_result = { max_bytes = 0 }
 exporter         = { otlp-grpc = { endpoint = "http://127.0.0.1:4317" } }
 trace_exporter   = { otlp-grpc = { endpoint = "http://127.0.0.1:4317" } }
 metrics_exporter = { otlp-grpc = { endpoint = "http://127.0.0.1:4317" } }
@@ -86,6 +87,18 @@ metrics_exporter = { otlp-grpc = { endpoint = "http://127.0.0.1:4317" } }
 | endpoint | `http://127.0.0.1:4317` | The same `127.0.0.1` reason as for Claude Code. |
 | `environment` | `local` | Codex adds it to every event; useful only to tell machines apart. |
 | `log_user_prompt` | `false` (the default) | Written out so the choice is visible. `true` would store prompt text; the reasons it's off are the same as for Claude Code's `OTEL_LOG_USER_PROMPTS`. |
+| `tool_result.max_bytes` | `0` | **By default Codex logs the first ~2 KB of every tool's output** (`output` on `codex.tool_result`): file contents, command output, MCP replies. The first test run stored lines of work code. `0` keeps the event (tool, duration, success, arguments) without the output. This is stricter than Claude Code, which never logs tool output. Raise it only for debugging. |
+
+**What Codex doesn't report:** there's no cost on a ChatGPT subscription
+(`codex.turn.cost_microusd` never appeared). Tokens per model are there
+(`codex.turn.token_usage`, `token_type` input/cached_input/output/
+reasoning_output). Usage is measured in tokens and turns, not dollars.
+
+**Trace volume:** Codex traces its internals too (`fs.get_metadata`,
+`fs.read_file`, auth, MCP refresh): one prompt made ~11,500 spans in 540
+traces. That's still only ~1 MB. For flame graphs, filter on the
+turn and tool spans. If it grows too much, set `trace_exporter = "none"`; the
+events and metrics cover usage.
 
 Left at their defaults, on purpose: `log_agent_responses`, `log_sse_deltas`
 and `log_guardian_assessments` (reply text and streaming chunks: large, and the
