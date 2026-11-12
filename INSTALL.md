@@ -4,6 +4,80 @@ Step-by-step instructions to set up these dotfiles on a new machine.
 
 ---
 
+## 🖥 New device: full setup, in order
+
+Each step needs the one before it. The sections below this one are reference.
+
+1. **Base tools.**
+   ```sh
+   xcode-select --install
+   # Homebrew: see brew.sh, then:
+   brew install git fzf ripgrep bat fd eza zoxide tmux starship jq
+   brew install colima docker docker-compose docker-buildx docker-credential-helper
+   ```
+2. **Dotfiles.** Clone anywhere, then deploy:
+   ```sh
+   git clone https://github.com/abijithkrish-swe/DotFiles.git ~/Projects/Personal/zshrc/configured
+   cd ~/Projects/Personal/zshrc/configured && sh install_copy.sh deploy
+   exec zsh
+   ```
+   - **Git identity:** deploy asks for this machine's identity, a default plus
+     optional per-folder ones (`sh install_copy.sh identity`). It's stored in
+     `~/.config/git/identity`, never in the repo.
+   - **Agent guardrails:** deploy offers `agents`. It merges the guardrails
+     into Claude Code (`~/.claude` and `~/.config/claude-personal`) and copies
+     `AGENTS.md` to `~/.codex/`. Re-run it any time with
+     `sh install_copy.sh agents`.
+3. **Machine-specific settings** go in `~/.config/git/local` and `~/.zshrc.local`,
+   never in the repo:
+   - a git credential-helper path, if this Mac needs one, e.g. the CLT's
+     `git-credential-osxkeychain`;
+   - a corporate proxy. Its helper app appends exports to `~/.zshrc`; the next
+     `deploy` offers `[m]` to move them to `~/.zshrc.local`.
+4. **GitHub push access.** Create a fine-grained token: Contents read/write on
+   the repos you push. Paste it at git's first password prompt; the macOS
+   Keychain keeps it, one entry per repo (`useHttpPath`).
+5. **Docker on Colima.** Link the Compose plugin as in
+   `DotFiles/config/docker/cli-plugins/docker-readme.md`, then start Colima with
+   `costart`. A new VM gets the template's 4 CPU, 8 GB, 100 GB and k3s. A VM
+   that already existed keeps its own size; resize it with
+   `colima stop && colima start --cpu 4 --memory 8 --kubernetes`.
+6. **Components (tools).** Put each approved version in
+   `~/Components/<Dir>/<version>/`, as the manifest lists them
+   (`~/.config/components/components.conf`). Copy them from a backup, or
+   download the same versions. Install **one Node first**, because toolshelf
+   needs it. Layout notes:
+   - **pnpm:** `Pnpm/<ver>/bin/` holds `pnpm` and its `dist/`;
+   - **JDK:** `Contents/Home`;
+   - **Rust:** its standalone installer with `--prefix`, not rustup.
+
+   Check with `components_check`. Never approve or install a tool from an agent.
+7. **toolshelf (the agents' tool server).**
+   ```sh
+   git clone https://github.com/abijithkrish-swe/toolshelf-mcp.git ~/Projects/Personal/toolshelf-mcp
+   cd ~/Projects/Personal/toolshelf-mcp && sh install.sh --register   # tests, installs, registers Claude Code
+   sh install.sh --print-config                                        # paste into Codex/ChatGPT, Claude app, Cursor
+   ```
+   Restart each app afterwards. The install tells you to redo this whenever
+   the manifest's default Node changes.
+8. **Observability (SigNoz, local).**
+   ```sh
+   obs_start        # first run: forges compose files offline, pulls ~1.5 GB of pinned images
+   ```
+   Then open **http://localhost:18080** and create the admin account. It's
+   stored locally, and SigNoz won't open OTLP until an organization exists.
+   Finish with `obs_status`, which should report OTLP answering on 4318.
+9. **Verify.**
+   - `components_check` and `devhelp`;
+   - ask an agent "list my components", then "run `node --version` with Node 22";
+   - repo checks: `zsh -f tests/components/parity.zsh`,
+     `perl tests/agents/agents-md-test.pl`, and `npm test` in `toolshelf-mcp`.
+
+Details: `Docs/AgentComponents.md` (agents, toolshelf, guardrails) and
+`devhelp observability` / `devhelp toolshelf` / `devhelp components`.
+
+---
+
 ## 📋 Prerequisites
 
 Before installing, make sure you have:
@@ -25,7 +99,7 @@ Clone this repo and run the installer:
 ```sh
 git clone <your-repo-url> ~/dotfiles
 cd ~/dotfiles
-./install_copy.sh deploy   # install repo → $HOME
+sh install_copy.sh deploy   # install repo → $HOME
 ```
 
 The installer is **verb-based**. Running it with no verb prints usage and changes
@@ -41,6 +115,8 @@ nothing.
 | `backup show [ts]` | Summarize a backup (latest if no timestamp). |
 | `backup create` | Manual snapshot of the `$HOME` paths the repo manages. |
 | `backup restore [ts]` | Restore `$HOME` from a backup. |
+| `identity` | This machine's git identity (default + per-folder); stored outside the repo. |
+| `agents` | Merge agent guardrails into Claude Code configs; copy `AGENTS.md` to `~/.codex/`. |
 | `help` | Show usage. |
 
 ### deploy
@@ -152,7 +228,7 @@ mv ~/.viminfo ~/.zshcache/viminfo 2>/dev/null || true
 
 - **Starship** → minimal prompt with git status/icons
 - **direnv** → per-project environment loading
-- **Zero-trust toggles** → enable/disable corp network settings in `.zsh.d/`
+- **Corporate proxy** → set per machine in `~/.zshrc.local` (see step 3 above)
 
 ---
 

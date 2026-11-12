@@ -446,20 +446,26 @@ into Claude configs. The sandbox profile is generated per run by toolshelf-mcp
 
 ### New machine
 
-1. Install Xcode CLT, Homebrew, git. Clone this repo.
-2. `./install_copy.sh deploy` — zsh, configs, manifest, agent rules. It asks for this
-   machine's git identity, including any per-folder rules (`install_copy.sh identity`).
-3. Restore `~/Components/` (copy from backup or re-download archives listed in
-   the manifest). Install **one Node first** — the MCP server needs it.
-4. `components_check`: confirms every manifest line resolves on disk.
-5. Clone `toolshelf-mcp` anywhere, then `./install.sh --register`. This builds
-   into `<components>/toolshelf-mcp` and registers it in Claude Code. For a
-   different layout, add `--prefix DIR`, `--components DIR` and/or
-   `--manifest FILE`. Registration passes the paths through. See `./install.sh --help`.
-6. Register it in other agents with `config/` snippets. Always use the
-   **absolute path to the pinned node**, not bare `node`, because agents' PATH differs.
-7. Install Colima/Docker; `costart`; `docker pull` each manifest digest once.
-8. Verify: ask an agent "list my components" and "run `java -version` with JDK 17".
+The complete ordered checklist is in **`INSTALL.md` → "New device: full
+setup"**: base tools, dotfiles, identity, proxy, GitHub token, Colima,
+components, toolshelf, other apps, SigNoz, verify. The agent-specific points:
+
+- **Order:** install `~/Components/` before toolshelf, with **one Node first**,
+  because toolshelf builds and runs with the manifest's default Node.
+- **toolshelf:** `sh install.sh --register` builds, tests and installs it
+  into `<components>/toolshelf-mcp`, and registers both Claude Code configs.
+  For another layout, use `--prefix` / `--components` / `--manifest`, and see
+  `sh install.sh --help`.
+- **Other apps** (Codex / ChatGPT, Claude app, Cursor): paste what
+  `sh install.sh --print-config` prints. It always uses the **absolute path
+  to the pinned node**, because each app's PATH differs.
+- **Rules:** `sh install_copy.sh agents` merges the guardrails into Claude
+  Code and copies `AGENTS.md` to `~/.codex/`. The other apps get the rules
+  from toolshelf's server instructions.
+- **Docker images:** pinned ones are pulled on first use. `components_images`
+  shows which are present.
+- **Verify:** ask an agent "list my components", then "run `java -version`
+  with JDK 17".
 
 ### Add a new version of an existing component
 
