@@ -213,9 +213,13 @@ backup_pair_into() {
         [ -e "$h" ] || continue
         backup_path_into "$h" "$bkroot/$rel/$r"
       done
-      [ -d "$bkroot/$rel" ] && say "  📦 $dest_home (tracked files only)"
+      # `if`, not `[ ] && say`: with set -e, a false test as the function's
+      # last command returned 1 and silently killed the whole deploy (seen when
+      # a merge dir existed but none of its repo files did yet).
+      if [ -d "$bkroot/$rel" ]; then say "  📦 $dest_home (tracked files only)"; fi
       ;;
   esac
+  return 0
 }
 
 diff_two_files() {
@@ -814,8 +818,9 @@ AGENTS_HOME="$HOME/.config/agents"
 # (myclaude → CLAUDE_CONFIG_DIR=~/.config/claude-personal). Only existing dirs.
 claude_config_dirs() {
   for d in "$HOME/.claude" "$HOME/.config/claude-personal"; do
-    [ -d "$d" ] && printf '%s\n' "$d"
+    if [ -d "$d" ]; then printf '%s\n' "$d"; fi
   done
+  return 0   # set -e: a missing last dir must not fail `dirs="$(claude_config_dirs)"`
 }
 
 # Merge DotFiles/config/agents/claude-settings.json into <dir>/settings.json:
