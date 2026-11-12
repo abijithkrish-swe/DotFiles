@@ -127,6 +127,16 @@ Never hardcode secrets; use the vault or environment variables.
 
 `costart` (start with kubernetes), `corest`, `costop`, `codrop` (delete VM), `colist`, `couse` (set docker context), `coinfo` (status summary). Nothing auto-starts.
 
+### Observability (`64-observability.zsh`)
+
+Self-hosted SigNoz on Colima, local only: `obs_start`, `obs_status`, `obs_stop`, `obs_down`, `obs_logs`, `obs_forge`. UI `http://localhost:8080`, OTLP `localhost:4317` (gRPC) / `4318` (HTTP).
+- **Casting:** `DotFiles/config/signoz/casting.yaml`, deployed to `~/.config/signoz/`. Every image is pinned by digest, and SigNoz's stats reporter and analytics are off.
+- **Compose files:** `obs_forge` generates them with SigNoz's `foundryctl`, run offline in a container from the manifest's `@image foundryctl`, into `~/.local/share/signoz/pours/`. It refuses unpinned images.
+- **Data:** docker volumes `signoz-*`.
+- **First run:** create the admin account in the UI. Until then SigNoz doesn't configure its collector, and OTLP doesn't answer.
+
+Help: `devhelp observability`.
+
 ### tmux (`46-tmux.zsh`)
 
 Smart session: `tm [name]` (attach or create; defaults to `main`). `tl` list, `tk <name>` kill, `tka` kill server. Splits: `tms` (vertical), `tml` (horizontal). Forces XDG config at `~/.config/tmux/tmux.conf`.

@@ -47,6 +47,9 @@ dockrun --net python 'pip install -r requirements.txt && pytest'   # proxy-only 
 dockrun --internet -p 8080 node 'npx serve -l 8080'   # UI on 127.0.0.1:8080
 dockrun python         # no command = a shell inside; -n = print docker cmds
 
+# Observability: self-hosted SigNoz (local) - see 'devhelp observability'
+obs_start / obs_status / obs_stop     # UI http://localhost:8080, OTLP :4317/:4318
+
 # Git sync helpers
 syncm                  # stash, checkout master, fetch, pull --rebase
 syncc                  # stash, pull --rebase current branch, stash pop
