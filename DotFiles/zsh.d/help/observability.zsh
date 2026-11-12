@@ -13,6 +13,10 @@ observability — self-hosted SigNoz on Colima (local only)
   UI    http://localhost:18080   (port: the patch at the end of the casting)
   OTLP  gRPC localhost:4317 · HTTP localhost:4318   (what apps send telemetry to)
 
+AI-usage telemetry (Claude Code → here): every setting and why, in
+Docs/Observability.md. Change them in claude-settings.json → env, then
+  sh install_copy.sh agents   and restart sessions.
+
 First run: create the admin account in the UI. SigNoz only configures its
 collector once an organization exists; until then 4317/4318 don't answer.
 

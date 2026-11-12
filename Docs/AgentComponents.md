@@ -331,6 +331,7 @@ The same goes for the other agent apps' rules and MCP configs:
 
 `Read(~/.codex/auth.json)` is denied too (the Codex / ChatGPT login tokens). Bash writes to the same paths are caught by a blocklist rule; reads stay allowed. You change these in the dotfiles repo and deploy |
 | `hooks.PreToolUse` (matcher `Bash`) | `$HOME/.config/agents/guard.sh` |
+| `env` | OpenTelemetry export to the local SigNoz, labelled `agent.config=claude` / `myclaude` per config (the merge fills in `{agent_config}`); the user's own env keys are kept. Every setting and why: `Docs/Observability.md` |
 | `hooks.Notification` / `hooks.Stop` | `afplay` Sosumi (needs input or approval) / Glass (reply done). Every config gets them, `myclaude` included |
 
 **`guard.sh`** is a Perl script with no dependencies. It reads the hook JSON, matches

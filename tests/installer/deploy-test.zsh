@@ -40,7 +40,17 @@ h=$(mkhome); mkdir -p $h/.claude
 out=$(cd $repo && HOME=$h sh install_copy.sh agents 2>&1); rc=$?
 check "agents exits 0 with only ~/.claude"         "(( rc == 0 ))"
 check "agents merged ~/.claude/settings.json"      "grep -q guard.sh $h/.claude/settings.json"
-rm -rf $h/.claude
+check "telemetry label for ~/.claude is claude"    "grep -q '\"OTEL_RESOURCE_ATTRIBUTES\": \"agent.config=claude\"' $h/.claude/settings.json"
+check "telemetry goes to 127.0.0.1 (not localhost)" "grep -q '\"OTEL_EXPORTER_OTLP_ENDPOINT\": \"http://127.0.0.1:4317\"' $h/.claude/settings.json"
+# both configs: each gets its own label; an existing env key of the user's is kept
+mkdir -p $h/.config/claude-personal
+print -r -- '{"env": {"MY_OWN_VAR": "keep-me"}}' >| $h/.config/claude-personal/settings.json
+out=$(cd $repo && HOME=$h sh install_copy.sh agents 2>&1); rc=$?
+check "agents exits 0 with both configs"           "(( rc == 0 ))"
+check "telemetry label for claude-personal is myclaude" "grep -q '\"OTEL_RESOURCE_ATTRIBUTES\": \"agent.config=myclaude\"' $h/.config/claude-personal/settings.json"
+check "the user's own env keys are kept"           "grep -q '\"MY_OWN_VAR\": \"keep-me\"' $h/.config/claude-personal/settings.json"
+check "a re-run changes nothing"                   "[[ \"\$(cd $repo && HOME=$h sh install_copy.sh agents 2>&1 | grep -c 'env\\.')\" == 0 ]]"
+rm -rf $h/.claude $h/.config/claude-personal
 out=$(cd $repo && HOME=$h sh install_copy.sh agents 2>&1); rc=$?
 check "agents exits 0 with no Claude config at all" "(( rc == 0 ))"
 rm -rf $h

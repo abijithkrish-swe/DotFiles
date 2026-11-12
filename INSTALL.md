@@ -73,7 +73,7 @@ Each step needs the one before it. The sections below this one are reference.
    - repo checks: `zsh -f tests/components/parity.zsh`,
      `perl tests/agents/agents-md-test.pl`, and `npm test` in `toolshelf-mcp`.
 
-Details: `Docs/AgentComponents.md` (agents, toolshelf, guardrails) and
+Details: `Docs/AgentComponents.md` (agents, toolshelf, guardrails), `Docs/Observability.md` (AI-usage telemetry: what, why, how to change) and
 `devhelp observability` / `devhelp toolshelf` / `devhelp components`.
 
 ---

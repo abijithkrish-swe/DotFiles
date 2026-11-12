@@ -827,10 +827,10 @@ claude_config_dirs() {
 # permission lists are unioned, our PreToolUse hook replaces an older copy of
 # itself; everything else in the file is kept as is (order preserved).
 merge_claude_settings() {
-  target="$1"; frag="$2"
-  /usr/bin/python3 - "$target" "$frag" <<'PY'
+  target="$1"; frag="$2"; label="${3:-claude}"
+  /usr/bin/python3 - "$target" "$frag" "$label" <<'PY'
 import json, os, sys
-target, frag = sys.argv[1], sys.argv[2]
+target, frag, label = sys.argv[1], sys.argv[2], sys.argv[3]
 cur = json.load(open(target)) if os.path.exists(target) and os.path.getsize(target) else {}
 before = json.dumps(cur, sort_keys=True)
 f = json.load(open(frag))
@@ -851,6 +851,14 @@ for event, entries in f.get("hooks", {}).items():
         if len(kept) == len(lst):
             changes.append(f"hooks.{event} + {e.get('matcher', '*')}: {', '.join(sorted(ours))}")
         lst[:] = kept + [e]
+# env: ours win for our keys; others are kept. "{agent_config}" becomes this
+# config's label (claude / myclaude), e.g. in OTEL_RESOURCE_ATTRIBUTES.
+env = cur.setdefault("env", {})
+for k, v in f.get("env", {}).items():
+    v = str(v).replace("{agent_config}", label)
+    if env.get(k) != v:
+        changes.append(f"env.{k} = {v}" + (f"  (was {env[k]})" if k in env else ""))
+        env[k] = v
 if json.dumps(cur, sort_keys=True) != before:
     with open(target, "w") as fh:
         json.dump(cur, fh, indent=2)
@@ -884,7 +892,13 @@ cmd_agents() {
     backup_path_into "$d/CLAUDE.md" "$bkroot_home/$rel/CLAUDE.md"
 
     say "    settings.json:"
-    merge_claude_settings "$d/settings.json" "$AGENTS_SRC/claude-settings.json"
+    # Label for telemetry: which config a session ran under (never mix them)
+    case "$d" in
+      "$HOME/.claude") label=claude ;;
+      */claude-personal) label=myclaude ;;
+      *) label=$(basename "$d") ;;
+    esac
+    merge_claude_settings "$d/settings.json" "$AGENTS_SRC/claude-settings.json" "$label"
 
     import_line='@~/.config/agents/AGENTS.md'
     if [ -f "$d/CLAUDE.md" ] && grep -qxF "$import_line" "$d/CLAUDE.md"; then

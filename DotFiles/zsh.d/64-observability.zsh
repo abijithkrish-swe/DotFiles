@@ -34,6 +34,8 @@ _obs_ui_port() {
 # organization exists, i.e. after the first account is created in the UI.
 _obs_needs_signup() { docker logs --since 5m signoz-signoz-0 2>&1 | grep -q 'cannot create agent without orgId'; }
 _obs_signup_hint() {
+  # only while OTLP is closed: old log lines linger after the account exists
+  curl -sS --noproxy '*' -o /dev/null -m 3 http://localhost:4318/ 2>/dev/null && return 0
   _obs_needs_signup || return 0
   print "!!  First run: create the admin account at http://localhost:$(_obs_ui_port) (stored locally)."
   print "    Until then SigNoz doesn't configure the collector, so OTLP on 4317/4318 isn't open."

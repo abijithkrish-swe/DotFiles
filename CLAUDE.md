@@ -135,7 +135,7 @@ Self-hosted SigNoz on Colima, local only: `obs_start`, `obs_status`, `obs_stop`,
 - **Data:** docker volumes `signoz-*`.
 - **First run:** create the admin account in the UI. Until then SigNoz doesn't configure its collector, and OTLP doesn't answer.
 
-Help: `devhelp observability`.
+Help: `devhelp observability`. What Claude Code reports, every setting and why (and the two left off): `Docs/Observability.md`.
 
 ### tmux (`46-tmux.zsh`)
 
