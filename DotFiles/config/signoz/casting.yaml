@@ -39,3 +39,16 @@ spec:
   telemetrykeeper:
     spec:
       image: clickhouse/clickhouse-keeper:25.12.5@sha256:525b8b0f93ccb371131c46f22a066ea43d33d74aba314203e8044609945d8524
+  # The UI on 18080 instead of 8080 (8080 is a common dev-server port). JSON
+  # Patch on the generated compose: `test` first, so forging fails loudly if a
+  # future Foundry lays the ports out differently. OTLP stays on 4317/4318.
+  # obs_* reads the port back from the generated compose.
+  patches:
+    - target: deployment/compose.yaml
+      operations:
+        - op: test
+          path: /services/signoz-signoz-0/ports/0
+          value: "8080:8080"
+        - op: replace
+          path: /services/signoz-signoz-0/ports/0
+          value: "18080:8080"

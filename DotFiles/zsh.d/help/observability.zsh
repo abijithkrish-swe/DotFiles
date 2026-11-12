@@ -10,7 +10,7 @@ observability — self-hosted SigNoz on Colima (local only)
   obs_logs [s]   follow logs (e.g. obs_logs signoz-signoz-0)
   obs_forge      regenerate the compose files from the casting (after edits/upgrades)
 
-  UI    http://localhost:8080
+  UI    http://localhost:18080   (port: the patch at the end of the casting)
   OTLP  gRPC localhost:4317 · HTTP localhost:4318   (what apps send telemetry to)
 
 First run: create the admin account in the UI. SigNoz only configures its

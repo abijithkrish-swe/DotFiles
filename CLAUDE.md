@@ -129,7 +129,7 @@ Never hardcode secrets; use the vault or environment variables.
 
 ### Observability (`64-observability.zsh`)
 
-Self-hosted SigNoz on Colima, local only: `obs_start`, `obs_status`, `obs_stop`, `obs_down`, `obs_logs`, `obs_forge`. UI `http://localhost:8080`, OTLP `localhost:4317` (gRPC) / `4318` (HTTP).
+Self-hosted SigNoz on Colima, local only: `obs_start`, `obs_status`, `obs_stop`, `obs_down`, `obs_logs`, `obs_forge`. UI `http://localhost:18080` (set by a JSON patch in the casting), OTLP `localhost:4317` (gRPC) / `4318` (HTTP).
 - **Casting:** `DotFiles/config/signoz/casting.yaml`, deployed to `~/.config/signoz/`. Every image is pinned by digest, and SigNoz's stats reporter and analytics are off.
 - **Compose files:** `obs_forge` generates them with SigNoz's `foundryctl`, run offline in a container from the manifest's `@image foundryctl`, into `~/.local/share/signoz/pours/`. It refuses unpinned images.
 - **Data:** docker volumes `signoz-*`.
