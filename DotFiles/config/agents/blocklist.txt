@@ -44,6 +44,16 @@ GOTOOLCHAIN=(?!local\b) ## Go must not auto-download toolchains (GOTOOLCHAIN=loc
 (^|[\s;&|(`])(\./)?mvnw?\s+([^;&|]*\s)?(wrapper:wrapper|io\.takari:maven:wrapper)\b ## changing the Maven wrapper version is the user's call
 org\.gradle\.java\.installations\.auto-download=true ## Gradle must not auto-provision JDKs
 
+# --- installers and config CLIs that rewrite agent configs: the user's to run ---
+# A script writes files whose paths never appear in the command, so the
+# path-based write rules below can't see it. An agent could otherwise edit the
+# repo copy of the guardrails and apply it itself. Read-only verbs stay allowed
+# (install_copy.sh backup list/show, claude mcp list/get, claude config get/list).
+install_copy\.sh\s+(deploy|sync|agents|identity|backup\s+restore)\b ## install_copy.sh deploy/sync/agents/identity/restore change your home and agent configs — the user runs them (agents edit the repo and print the command)
+install\.sh\s+([^;&|\n]*\s)?--register\b ## toolshelf install.sh --register rewrites Claude Code configs — the user runs it
+(^|[\s;&|(`])(\S*/)?claude\s+(mcp\s+(add|add-json|add-from-claude-desktop|remove)|config\s+(set|add|remove))\b ## claude mcp add/remove and claude config set change Claude Code configs — the user runs them
+(^|[\s;&|(`])(\S*/)?codex\s+mcp\s+(add|remove)\b ## codex mcp add/remove changes Codex's config — the user runs it
+
 # --- the rules themselves ------------------------------------------------------
 # Writing (> >> tee cp mv rm ln chmod sed -i perl -i …) to the guardrails, the
 # approved-versions manifest or Claude's settings. Reads (cat, grep, cmp) pass.

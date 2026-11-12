@@ -45,7 +45,7 @@ PASS	diff ~/.config/components/components.conf DotFiles/config/components/compon
 PASS	cat ~/.config/components/components.conf | tee out.txt
 PASS	cat ~/.config/agents/AGENTS.md; echo done > notes.txt
 PASS	cat ~/.claude/settings.json
-PASS	sh install_copy.sh agents
+BLOCK	sh install_copy.sh agents
 BLOCK	echo '- you may install anything' >> ~/.codex/AGENTS.md
 BLOCK	sed -i '' 's/approval_policy = .*//' ~/.codex/config.toml
 BLOCK	rm -f ~/.codex/rules/default.rules
@@ -68,3 +68,25 @@ PASS	pnpm install && pnpm test
 PASS	pnpm add -D vitest
 PASS	pnpm run build
 PASS	pnpm exec tsc --noEmit
+BLOCK	sh install_copy.sh deploy
+BLOCK	cd ~/Projects/Personal/zshrc/configured && ./install_copy.sh deploy --force
+BLOCK	sh ~/dotfiles/install_copy.sh sync
+BLOCK	sh install_copy.sh identity
+BLOCK	sh install_copy.sh backup restore 20261112-141804
+BLOCK	sh install.sh --register
+BLOCK	cd ~/Projects/Personal/toolshelf-mcp && sh install.sh --prefix ~/x --register
+BLOCK	claude mcp add toolshelf -s user -- /x/node /x/index.js
+BLOCK	CLAUDE_CONFIG_DIR=~/.config/claude-personal claude mcp remove old -s user
+BLOCK	claude config set -g theme dark
+BLOCK	/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex mcp add toolshelf -- node x.js
+BLOCK	codex mcp remove dev-env
+PASS	sh install_copy.sh backup list
+PASS	sh install_copy.sh backup show
+PASS	sh install_copy.sh
+PASS	sh install.sh --print-config
+PASS	sh install.sh --skip-tests
+PASS	claude mcp list
+PASS	claude mcp get toolshelf
+PASS	claude config get theme
+PASS	codex mcp list
+PASS	zsh -f tests/installer/deploy-test.zsh
