@@ -26,7 +26,10 @@ Kubernetes (when started with --kubernetes):
   helm install nginx bitnami/nginx
 
 Hints:
-  • Config file: ~/.colima/default.yaml (CPU/RAM/Disk, runtime, k8s=true)
+  • Running VM's settings: ~/.config/colima/default/colima.yaml ($COLIMA_HOME).
+    Resize: colima stop && colima start --cpu 4 --memory 8 --kubernetes
+  • New VMs start from ~/.config/colima/_templates/default.yaml (dotfiles:
+    DotFiles/config/colima/_templates/default.yaml): 4 CPU, 8 GB, 100 GB, k3s.
   • Switch runtime: containerd → use nerdctl (docker-compatible)
   • Images live inside the Colima VM; export with 'docker save' if needed
 EOF

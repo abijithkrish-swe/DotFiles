@@ -1,0 +1,19 @@
+# Colima template: what a NEW VM gets (`colima start` when none exists, or
+# after `colima delete`). Deployed to ~/.config/colima/_templates/default.yaml.
+# A running VM keeps its own settings in ~/.config/colima/default/colima.yaml;
+# change those with `colima stop && colima start --cpu N --memory N`.
+#
+# Sized for the observability stack (SigNoz: ClickHouse + collector, ~4 GB)
+# plus k3s and a couple of project containers. The Mac has 24 GB.
+cpu: 4
+memory: 8
+disk: 100
+arch: aarch64          # Apple Silicon; x86_64 on Intel
+runtime: docker
+vmType: vz
+mountType: virtiofs
+kubernetes:
+  enabled: true
+  version: v1.33.4+k3s1
+# No dns override: the VM uses the Mac's resolver, which works with the
+# zero-trust proxy (a public resolver such as 1.1.1.1 can bypass it).
