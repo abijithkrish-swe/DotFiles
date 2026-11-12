@@ -197,6 +197,8 @@ Order of checks, then the run (`toolshelf-mcp/src/sandbox.ts`):
    - **read:** everything except credentials and private data: `~/.ssh`, `~/.gnupg`,
      `~/.aws`, `~/.kube`, `~/.docker`, `~/.config/{secrets,gh,docker,npm,gcloud,claude-personal}`,
      `~/.claude*`, `~/.codex` (Codex / ChatGPT app login tokens), `~/.netrc`, `~/.npmrc`, Maven/Gradle/Cargo credential files,
+     (writes also allow one folder in `/tmp`: `pnpm-store-operation-locks-<uid>`, where pnpm ≥ 12
+     keeps `.lock` files no matter what `TMPDIR` says; `/tmp` itself stays unwritable)
      shell history (`~/.zshcache`), and all of `~/Library` (keychains, app data, cookies);
    - **network:** localhost only. That covers the zero-trust proxy and local test servers.
      There is no DNS, no direct internet, and no unix sockets, so the Docker socket is unreachable too.

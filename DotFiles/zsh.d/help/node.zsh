@@ -40,7 +40,9 @@ pnpm (its own component: the standalone binary, no Node needed to run it)
   Projects still need Node for scripts: use_node 22 && use_pnpm.
   Agents: run with tools {"node": "22", "pnpm": ""}. In the sandbox pnpm's store,
     cache and state live in ~/.cache/toolshelf/pnpm, and it never switches itself
-    to the version in a project's "packageManager" field.
+    to the version in a project's "packageManager" field. (pnpm ≥ 11 reads
+    pnpm_config_* rather than npm_config_*; toolshelf sets both. pnpm 12 locks in
+    /tmp/pnpm-store-operation-locks-<uid>, the one /tmp folder the sandbox allows.)
   Docker mode has no pnpm image: use node's, with corepack inside the container:
     dockrun --net node=22 'COREPACK_ENABLE_DOWNLOAD_PROMPT=0 corepack pnpm install'
 

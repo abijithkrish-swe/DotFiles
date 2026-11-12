@@ -32,7 +32,7 @@ use_mysql 8         # PATH + MYSQL_HOME/data dirs + start/stop (alias: mysql_use
 use_protoc 25       # PATH only (aliases: protobuf_use, use_protobuf)
 ```
 
-Installed now: JDK 11/17/25/26.0.2 (no 21; plan is 17 → 25), Maven 3.9.12/4.0.0-rc-5, Gradle 8.14.4/9.3.1, Ant 1.9.6, Node 20/22/24/25/26, Go 1.24.5/1.27.4, Rust 1.99.1, Python 3.15.2, Protobuf 3.16.3/25.5, Redis 6.2.14/7.4.5, MySQL 5.7.30/8.0.43. Run `components_check` for the live list.
+Installed now: JDK 11/17/25/26.0.2 (no 21; plan is 17 → 25), Maven 3.9.12/4.0.0-rc-5, pnpm 12.20.0, Gradle 8.14.4/9.3.1, Ant 1.9.6, Node 20/22/24/25/26, Go 1.24.5/1.27.4, Rust 1.99.1, Python 3.15.2, Protobuf 3.16.3/25.5, Redis 6.2.14/7.4.5, MySQL 5.7.30/8.0.43. Run `components_check` for the live list.
 
 Each tool also has:
 - `<tool>_list`: approved versions with default/autoload flags, plus broken or unapproved folders.
@@ -81,7 +81,7 @@ Set in the manifest, not in zsh. `default` is used when no version is given, and
 
 - Autoload: JDK 11
 - On PATH only: MySQL 8.0.43 client (for remote instances; no `MYSQL_HOME`/socket set, server not started)
-- Defaults: JDK 11, Maven 3.9.12, Gradle 8.14.4, Ant 1.9.6, Node 20.19.5, Go 1.27.4, Rust 1.99.1, Python 3.15.2, Protobuf 3.16.3, Redis 7.4.5, MySQL 8.0.43
+- Defaults: JDK 11, Maven 3.9.12, Gradle 8.14.4, Ant 1.9.6, Node 20.19.5, pnpm 12.20.0, Go 1.27.4, Rust 1.99.1, Python 3.15.2, Protobuf 3.16.3, Redis 7.4.5, MySQL 8.0.43
 
 ## Key Paths
 
