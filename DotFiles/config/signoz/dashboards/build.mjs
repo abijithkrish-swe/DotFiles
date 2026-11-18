@@ -163,6 +163,7 @@ const dashboards = {
         [panel("table", "Usage rate by config", "Per active day (IST). api_equiv_usd is Claude Code's cost_usd: what the API would charge, not what the plan bills.", [ch("config_compare")]), 12],
         [panel("time_series", "Output tokens per 5 hours", "Tumbling 5-hour IST blocks: a rough view of the plans' 5-hour usage windows (the real windows start at your first message).", [ch("usage_per_5h", "{{agent_config}}")], "short"), 6],
         [panel("table", "Cost by hour of day (IST)", "When each config is used.", [ch("cost_by_hour_of_day")]), 6],
+        [panel("table", "Rate-limit hits", "Each 'would exceed your rate limit' error, with that config's usage in the 5 hours before it: what the plan allowed.", [ch("rate_limit_hits")]), 12],
       ]],
       ["Tokens", [
         [panel("time_series", "Claude tokens by type", "claude_code.token.usage: Increase / Sum by type and agent.config.",

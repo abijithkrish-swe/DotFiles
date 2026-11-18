@@ -125,6 +125,15 @@
               "width": 6,
               "x": 6,
               "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/b4ff0e03-8c74-5ff2-a125-ca67a7e0a79d"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 12
             }
           ]
         }
@@ -755,6 +764,50 @@
                         "spec": {
                           "name": "A",
                           "query": "SELECT\n  toHour(fromUnixTimestamp64Nano(timestamp), 'Asia/Kolkata') AS hour_ist,\n  round(sumIf(attributes_number['cost_usd'], resources_string['agent.config'] = 'claude'), 2) AS claude_usd,\n  round(sumIf(attributes_number['cost_usd'], resources_string['agent.config'] = 'myclaude'), 2) AS myclaude_usd,\n  countIf(resources_string['agent.config'] = 'claude') AS claude_requests,\n  countIf(resources_string['agent.config'] = 'myclaude') AS myclaude_requests\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY hour_ist\nORDER BY hour_ist",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "b4ff0e03-8c74-5ff2-a125-ca67a7e0a79d": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Rate-limit hits",
+            "description": "Each 'would exceed your rate limit' error, with that config's usage in the 5 hours before it: what the plan allowed."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "-- Each rate-limit error, with what that config used in the 5 hours before it:\n-- an empirical view of the plan's 5-hour allowance.\nWITH hits AS (\n  SELECT timestamp AS hit_ts,\n         resources_string['agent.config'] AS agent_config,\n         attributes_string['anthropic.plan'] AS plan,\n         attributes_string['model'] AS model\n  FROM signoz_logs.distributed_logs_v2\n  WHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n    AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n    AND attributes_string['event.name'] = 'api_error'\n    AND attributes_string['error'] LIKE '%rate limit%'\n),\nreqs AS (\n  SELECT timestamp AS ts,\n         resources_string['agent.config'] AS agent_config,\n         attributes_number['cost_usd'] AS cost,\n         attributes_number['output_tokens'] AS output_tokens\n  FROM signoz_logs.distributed_logs_v2\n  WHERE timestamp BETWEEN {{.start_timestamp_nano}} - 5 * 3600 * 1000000000 AND {{.end_timestamp_nano}}\n    AND ts_bucket_start BETWEEN {{.start_timestamp}} - 5 * 3600 - 1800 AND {{.end_timestamp}}\n    AND attributes_string['event.name'] = 'api_request'\n)\nSELECT\n  fromUnixTimestamp64Nano(h.hit_ts) AS hit_at,\n  h.agent_config AS agent_config,\n  h.plan AS plan,\n  h.model AS model,\n  countIf(r.ts BETWEEN h.hit_ts - 5 * 3600 * 1000000000 AND h.hit_ts) AS requests_prev_5h,\n  round(sumIf(r.cost, r.ts BETWEEN h.hit_ts - 5 * 3600 * 1000000000 AND h.hit_ts), 2) AS api_equiv_usd_prev_5h,\n  sumIf(r.output_tokens, r.ts BETWEEN h.hit_ts - 5 * 3600 * 1000000000 AND h.hit_ts) AS output_tokens_prev_5h\nFROM hits AS h\nINNER JOIN reqs AS r ON r.agent_config = h.agent_config\nGROUP BY hit_at, agent_config, plan, model\nORDER BY hit_at DESC\nLIMIT 30",
                           "disabled": false
                         }
                       }
