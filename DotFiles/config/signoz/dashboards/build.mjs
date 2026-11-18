@@ -255,7 +255,9 @@ for (const [slug, d] of Object.entries(dashboards)) {
     schemaVersion: "v6",
     name: slug,
     image: "/assets/Icons/eight-ball",
-    tags: d.tags,
+    // SigNoz wants tags as {key, value} objects (tagtypes.PostableTag), not strings;
+    // null is what its own import sends for files without tags.
+    tags: null,
     spec: {
       display: { name: d.name, description: d.description },
       duration: "",

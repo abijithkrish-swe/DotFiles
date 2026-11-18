@@ -2,11 +2,7 @@
   "schemaVersion": "v6",
   "name": "ai-tools",
   "image": "/assets/Icons/eight-ball",
-  "tags": [
-    "ai",
-    "tools",
-    "mcp"
-  ],
+  "tags": null,
   "spec": {
     "display": {
       "name": "AI tools: what agents use",

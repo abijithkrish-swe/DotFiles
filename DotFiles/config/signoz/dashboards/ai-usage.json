@@ -2,11 +2,7 @@
   "schemaVersion": "v6",
   "name": "ai-usage",
   "image": "/assets/Icons/eight-ball",
-  "tags": [
-    "ai",
-    "claude-code",
-    "codex"
-  ],
+  "tags": null,
   "spec": {
     "display": {
       "name": "AI usage: spend, tokens, work",

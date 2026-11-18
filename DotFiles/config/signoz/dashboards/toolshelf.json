@@ -2,10 +2,7 @@
   "schemaVersion": "v6",
   "name": "toolshelf",
   "image": "/assets/Icons/eight-ball",
-  "tags": [
-    "toolshelf",
-    "sre"
-  ],
+  "tags": null,
   "spec": {
     "display": {
       "name": "toolshelf: agent runs",
