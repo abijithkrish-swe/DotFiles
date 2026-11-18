@@ -31,7 +31,7 @@ a metric and events, so you can compare the two ways.
   - **Metrics:** pick a metric (*Search metric name*), then *Temporal
     Aggregation* and *Spatial Aggregation* (below).
   - **Logs and traces:** you type two **expressions**:
-    - a *Filter*, e.g. `event.name = 'api_request' AND agent.config = 'claude'`;
+    - a *Filter*, e.g. `attribute.event.name = 'api_request' AND agent.config = 'claude'`;
     - an aggregation, e.g. `sum(cost_usd)`, `count()`, `p95(duration_ms)`,
       `count_distinct(session.id)`.
 
@@ -49,6 +49,15 @@ a metric and events, so you can compare the two ways.
 attributes. `cost_usd`, `input_tokens` and Claude's API `duration_ms` are
 numbers. Claude Code's and Codex's *tool* `duration_ms` and `success` are sent
 as **strings**, so those panels need SQL (`toFloat64OrZero`).
+
+**Keys that start with a context word:** a filter key can begin with a
+*context*: `resource.`, `attribute.`, `span.`, `log.`, `event.`, `scope.`,
+`body.`, `metric.` or `trace.`. So `event.name` is read as "the key `name` in
+context `event`", and fails with **key `name` not found**. Spell out the
+context when a key starts with one of those words: `attribute.event.name`.
+On traces, a span's own name isn't a filterable key either. toolshelf panels
+filter on `toolshelf.mode EXISTS` instead, which only `toolshelf.run` spans
+carry.
 
 ### Metric vocabulary (the Query Builder asks for these)
 
@@ -207,11 +216,11 @@ to compute.
 
 | # | Visualization | Filter | Aggregation(s) | Group By | Notes |
 |---|---|---|---|---|---|
-| 2 | Bar Chart | `event.name = 'api_request'` | `sum(cost_usd)` | `agent.config` | Unit USD. Step 86400 s for one bar per day. **The days are UTC** (they start at 05:30 IST); for IST days use the SQL below. |
-| 3 | Table | `event.name = 'api_request'` | `count()`, `sum(cost_usd)`, `avg(cost_usd)` (*Add a second aggregation*) | `model`, `agent.config` | Order By `sum(cost_usd)` desc. |
-| 7 | Bar Chart | `event.name IN ('user_prompt', 'codex.user_prompt')` | `count()` | `service.name`, `agent.config` | Codex has no `agent.config`, so its bars show it empty. Step 86400 s. |
-| 13 | **List** | `event.name = 'toolshelf.blocked'` | none (a List shows rows) | none | Add the columns `agent.client`, `toolshelf.project`, `toolshelf.block_reason` and `toolshelf.command`. |
-| 14 | Table | `event.name = 'api_request'` | `p50(duration_ms)`, `p95(duration_ms)`, `p50(ttft_ms)` | `model` | Unit ms. |
+| 2 | Bar Chart | `attribute.event.name = 'api_request'` | `sum(cost_usd)` | `agent.config` | Unit USD. Step 86400 s for one bar per day. **The days are UTC** (they start at 05:30 IST); for IST days use the SQL below. |
+| 3 | Table | `attribute.event.name = 'api_request'` | `count()`, `sum(cost_usd)`, `avg(cost_usd)` (*Add a second aggregation*) | `model`, `agent.config` | Order By `sum(cost_usd)` desc. |
+| 7 | Bar Chart | `attribute.event.name IN ('user_prompt', 'codex.user_prompt')` | `count()` | `service.name`, `agent.config` | Codex has no `agent.config`, so its bars show it empty. Step 86400 s. |
+| 13 | **List** | `attribute.event.name = 'toolshelf.blocked'` | none (a List shows rows) | none | Add the columns `agent.client`, `toolshelf.project`, `toolshelf.block_reason` and `toolshelf.command`. |
+| 14 | Table | `attribute.event.name = 'api_request'` | `p50(duration_ms)`, `p95(duration_ms)`, `p50(ttft_ms)` | `model` | Unit ms. |
 
 **Try it:** build panel 1 with the builder (Signal **Metrics**,
 `claude_code.cost.usage`, Increase / Sum, visualization **Number**, unit USD)
@@ -481,9 +490,9 @@ Then the condition reads as a sentence:
 
 | Alert | Filter | Aggregation | Condition | Evaluation window |
 |---|---|---|---|---|
-| **Daily cost** | `event.name = 'api_request'` | `sum(cost_usd)` | ABOVE your budget, **IN TOTAL** | **Cumulative → Current day**, from 00:00, timezone **Asia/Kolkata** |
-| **Blocked command** | `event.name = 'toolshelf.blocked'` | `count()` | ABOVE `0`, AT LEAST ONCE | Rolling, last 1 hour |
-| **Rate limit hit** | `event.name = 'api_error' AND error CONTAINS 'rate limit'` | `count()`, Group By `agent.config` | ABOVE `0`, AT LEAST ONCE | Rolling, last 15 minutes |
+| **Daily cost** | `attribute.event.name = 'api_request'` | `sum(cost_usd)` | ABOVE your budget, **IN TOTAL** | **Cumulative → Current day**, from 00:00, timezone **Asia/Kolkata** |
+| **Blocked command** | `attribute.event.name = 'toolshelf.blocked'` | `count()` | ABOVE `0`, AT LEAST ONCE | Rolling, last 1 hour |
+| **Rate limit hit** | `attribute.event.name = 'api_error' AND error CONTAINS 'rate limit'` | `count()`, Group By `agent.config` | ABOVE `0`, AT LEAST ONCE | Rolling, last 15 minutes |
 | **toolshelf failures** (*Traces Based Alert*) | `service.name = 'toolshelf' AND toolshelf.mode EXISTS AND has_error = true` | `count()`, Group By `agent.client` | ABOVE `5`, IN TOTAL | Rolling, last 1 hour |
 
 Add Group By `agent.config` to the cost alert to get one alert per config. A
