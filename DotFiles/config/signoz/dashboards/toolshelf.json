@@ -179,7 +179,7 @@
                           ],
                           "disabled": false,
                           "filter": {
-                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                            "expression": "service.name = 'toolshelf' AND toolshelf.mode EXISTS"
                           },
                           "legend": "",
                           "name": "A",
@@ -233,7 +233,7 @@
                           ],
                           "disabled": true,
                           "filter": {
-                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                            "expression": "service.name = 'toolshelf' AND toolshelf.mode EXISTS"
                           },
                           "legend": "",
                           "name": "A",
@@ -251,7 +251,7 @@
                           ],
                           "disabled": true,
                           "filter": {
-                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                            "expression": "service.name = 'toolshelf' AND toolshelf.mode EXISTS"
                           },
                           "legend": "",
                           "name": "B",
@@ -314,7 +314,7 @@
                           ],
                           "disabled": false,
                           "filter": {
-                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                            "expression": "service.name = 'toolshelf' AND toolshelf.mode EXISTS"
                           },
                           "legend": "",
                           "name": "A",
@@ -433,7 +433,7 @@
                           ],
                           "disabled": false,
                           "filter": {
-                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                            "expression": "service.name = 'toolshelf' AND toolshelf.mode EXISTS"
                           },
                           "groupBy": [
                             {

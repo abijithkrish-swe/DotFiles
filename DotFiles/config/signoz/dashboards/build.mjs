@@ -133,7 +133,9 @@ const formula = (expression, legendFormat, name = "F1") => ({
   spec: { disabled: false, expression, legend: legendFormat, name },
 });
 
-const TS_RUNS = "service.name = 'toolshelf' AND name = 'toolshelf.run'";
+// Root spans only. Not `name = 'toolshelf.run'`: the v5 filter rejects `name` ("key `name` not found").
+// toolshelf.mode is set on toolshelf.run spans and on nothing else.
+const TS_RUNS = "service.name = 'toolshelf' AND toolshelf.mode EXISTS";
 
 // --- dashboards -------------------------------------------------------------------
 // Each section: [title, [[panel, width], …]]. Width is out of 12; numbers are

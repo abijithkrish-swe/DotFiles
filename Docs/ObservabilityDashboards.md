@@ -229,7 +229,7 @@ Signal **Traces**:
 
 | # | Visualization | Filter | Aggregation(s) | Group By |
 |---|---|---|---|---|
-| 11 | Table | `service.name = 'toolshelf' AND name = 'toolshelf.run'` | `count()`, `p95(duration_nano)` | `toolshelf.command.name`, `agent.config`, `agent.client` |
+| 11 | Table | `service.name = 'toolshelf' AND toolshelf.mode EXISTS` | `count()`, `p95(duration_nano)` | `toolshelf.command.name`, `agent.config`, `agent.client` |
 | 12 | Table | `service.name = 'toolshelf'` | `count()`, `p50(duration_nano)`, `p95(duration_nano)` | `name` |
 
 For error counts, add a second query with the filter extended by
@@ -484,7 +484,7 @@ Then the condition reads as a sentence:
 | **Daily cost** | `event.name = 'api_request'` | `sum(cost_usd)` | ABOVE your budget, **IN TOTAL** | **Cumulative → Current day**, from 00:00, timezone **Asia/Kolkata** |
 | **Blocked command** | `event.name = 'toolshelf.blocked'` | `count()` | ABOVE `0`, AT LEAST ONCE | Rolling, last 1 hour |
 | **Rate limit hit** | `event.name = 'api_error' AND error CONTAINS 'rate limit'` | `count()`, Group By `agent.config` | ABOVE `0`, AT LEAST ONCE | Rolling, last 15 minutes |
-| **toolshelf failures** (*Traces Based Alert*) | `service.name = 'toolshelf' AND name = 'toolshelf.run' AND has_error = true` | `count()`, Group By `agent.client` | ABOVE `5`, IN TOTAL | Rolling, last 1 hour |
+| **toolshelf failures** (*Traces Based Alert*) | `service.name = 'toolshelf' AND toolshelf.mode EXISTS AND has_error = true` | `count()`, Group By `agent.client` | ABOVE `5`, IN TOTAL | Rolling, last 1 hour |
 
 Add Group By `agent.config` to the cost alert to get one alert per config. A
 group-by also lets SigNoz group the notifications.
