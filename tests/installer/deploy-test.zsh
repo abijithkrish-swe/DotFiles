@@ -55,5 +55,23 @@ out=$(cd $repo && HOME=$h sh install_copy.sh agents 2>&1); rc=$?
 check "agents exits 0 with no Claude config at all" "(( rc == 0 ))"
 rm -rf $h
 
+# 3. fold-back warns when both sides changed (2026-11-19: folding the home
+# manifest dropped a docker pin the repo had). Answers go to /dev/tty, so
+# `script` gives the run a terminal. Only "q" is ever sent: it aborts before
+# anything is written, so the real repo is never touched.
+h=$(mkhome)
+(cd $repo && HOME=$h sh install_copy.sh deploy --force >/dev/null 2>&1)
+conf=$h/.config/components/components.conf
+repo_line=$(grep -m1 '^node .*docker=' $conf)
+grep -vxF -- "$repo_line" $conf >| $conf.new && print 'jdk       99.0.1' >> $conf.new && mv $conf.new $conf
+before=$(cd $repo && git status --porcelain)
+out=$(cd $repo && { sleep 3; print q; sleep 1 } | HOME=$h script -q /dev/null sh install_copy.sh deploy 2>&1 | tr -d '\r')
+check "fold warns that the repo has lines home lacks" "[[ \$out == *'[y] fold would DROP them from the repo'* ]]"
+check "it names the repo-only line"                 "[[ \$out == *\"repo only: \$repo_line\"* ]]"
+check "and the home-only line"                      "[[ \$out == *'home only: jdk       99.0.1'* ]]"
+check "q aborts with nothing written"               "[[ \$out == *'deploy aborted. Nothing was written.'* && \"\$(cd $repo && git status --porcelain)\" == \"\$before\" ]]"
+(( bad )) && print -r -- "--- deploy output (last 15 lines):" && print -r -- "${(F)${(f)out}[-15,-1]}"
+rm -rf $h
+
 print "\n$ok passed, $bad failed"
 (( bad == 0 ))

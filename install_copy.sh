@@ -383,6 +383,34 @@ move_to_zshrc_local() {
   rm -f "$zl_new"
 }
 
+# Both sides changed? Fold [y] copies the WHOLE home file over the repo one,
+# so lines only the repo has would be lost (2026-11-19: a new docker pin in
+# components.conf was dropped when home had a different new line).
+# Writes the repo-only lines to $3 and the home-only lines to $4 (blank lines
+# ignored). Returns 0 when the repo has lines home lacks. Regular files only.
+fold_conflict_lines() {
+  : > "$3"; : > "$4"
+  if [ ! -f "$1" ] || [ ! -f "$2" ]; then return 1; fi
+  grep -vxF -f "$1" "$2" | grep -v '^[[:space:]]*$' > "$3" || true
+  grep -vxF -f "$2" "$1" | grep -v '^[[:space:]]*$' > "$4" || true
+  if [ -s "$3" ]; then return 0; fi
+  return 1
+}
+
+# Print a fold conflict found by fold_conflict_lines (at most 10 lines each).
+# $3/$4: the keys that copy home→repo / repo→home (deploy: [y] / [n]; sync: [<] / [>]).
+say_fold_conflict() {
+  to_repo="${3:-[y] fold}"; to_home="${4:-[n] discard}"
+  say "⚠️  Both sides changed. The repo has $(wc -l < "$1" | tr -d ' ') line(s) that home lacks; $to_repo would DROP them from the repo:"
+  head -10 "$1" | while IFS= read -r l; do say "     repo only: $l"; done
+  if [ -s "$2" ]; then
+    say "   Home has $(wc -l < "$2" | tr -d ' ') line(s) the repo lacks; $to_home would drop them:"
+    head -10 "$2" | while IFS= read -r l; do say "     home only: $l"; done
+    say "   Safest: [q] quit, add the home-only lines above to the repo, then run again."
+  fi
+  return 0
+}
+
 cmd_deploy() {
   force=0
   for a in "$@"; do
@@ -436,7 +464,19 @@ cmd_deploy() {
       say "----- $hp [$status] -----"
       show_change_diff "$hp" "$rp" "$status"
 
-      if [ "$apply_all" -eq 1 ]; then
+      conflict=0
+      c_repo="$(mktemp "${TMPDIR:-/tmp}/fold-repo-only.XXXXXX")"
+      c_home="$(mktemp "${TMPDIR:-/tmp}/fold-home-only.XXXXXX")"
+      if [ "$status" = "DIFFERS" ] && fold_conflict_lines "$hp" "$rp" "$c_repo" "$c_home"; then
+        conflict=1
+        say_fold_conflict "$c_repo" "$c_home"
+      fi
+      rm -f "$c_repo" "$c_home"
+
+      # fold-all never folds over repo-only lines without asking
+      if [ "$apply_all" -eq 1 ] && [ "$conflict" -eq 1 ]; then
+        say "   (fold-all is on, but this one needs your answer)"
+      elif [ "$apply_all" -eq 1 ]; then
         printf '%s%s%s%s%s%s%s\n' "$hp" "$TAB" "$rp" "$TAB" "$status" "$TAB" "$mode" >> "$drift_sel"
         say "✅ folded (all)"
         continue
@@ -601,6 +641,12 @@ cmd_sync() {
           printf "Action? [m move them to ~/.zshrc.local, then repo → home / > / < / s / q]: " > /dev/tty
         else
           : > "$extra"
+          c_repo="$(mktemp "${TMPDIR:-/tmp}/fold-repo-only.XXXXXX")"
+          c_home="$(mktemp "${TMPDIR:-/tmp}/fold-home-only.XXXXXX")"
+          if fold_conflict_lines "$hp" "$rp" "$c_repo" "$c_home" && [ -s "$c_home" ]; then
+            say_fold_conflict "$c_repo" "$c_home" "[<]" "[>]"
+          fi
+          rm -f "$c_repo" "$c_home"
           printf "Action? [>/</s/q]: " > /dev/tty
         fi
         ;;
