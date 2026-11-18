@@ -1,0 +1,759 @@
+{
+  "schemaVersion": "v6",
+  "name": "toolshelf",
+  "image": "/assets/Icons/eight-ball",
+  "tags": [
+    "toolshelf",
+    "sre"
+  ],
+  "spec": {
+    "display": {
+      "name": "toolshelf: agent runs",
+      "description": "Every toolshelf run (sandbox or docker) as a trace: what agents run, where time goes, what fails or is blocked. Built by DotFiles/config/signoz/dashboards/build.mjs."
+    },
+    "duration": "",
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Overview"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/f39f49d1-de7f-5322-adfd-b0f47566b09e"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/6f1b5dc7-6d81-5d2f-abe6-065ca988b57f"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 3,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/4aba45f2-ac4d-5502-ac8e-2b3f271e6f72"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 6,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/02f59e7f-2b93-55cb-a731-aeebd4206d20"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 9,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/22c51061-f295-50d6-a873-0bb2b7393a10"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 0,
+              "y": 3
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/17d198a7-c6c4-55f7-abf4-183aa866bc00"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 6,
+              "y": 3
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Breakdown"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/ec9f0361-172e-5548-a2c6-640bc01ab274"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/ff3efcd5-27a6-59ae-a767-d06fcc5458e4"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 0,
+              "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/ea63757f-4c58-5a6c-a8c9-5bdd0ea45f42"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 6,
+              "y": 6
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Problems"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/c657242c-10f9-5a41-adac-06362ba3f712"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/9155b0a1-785c-5eaa-a9f3-1d3173fcb508"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 6
+            }
+          ]
+        }
+      }
+    ],
+    "panels": {
+      "f39f49d1-de7f-5322-adfd-b0f47566b09e": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Runs",
+            "description": "toolshelf.run spans in range."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "expression": "count()"
+                            }
+                          ],
+                          "disabled": false,
+                          "filter": {
+                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                          },
+                          "legend": "",
+                          "name": "A",
+                          "signal": "traces",
+                          "source": ""
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "6f1b5dc7-6d81-5d2f-abe6-065ca988b57f": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Failed %",
+            "description": "Runs with an error status (non-zero exit, timeout, blocked)."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "percent"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "expression": "countIf(has_error = true)"
+                            }
+                          ],
+                          "disabled": true,
+                          "filter": {
+                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                          },
+                          "legend": "",
+                          "name": "A",
+                          "signal": "traces",
+                          "source": ""
+                        }
+                      },
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "expression": "count()"
+                            }
+                          ],
+                          "disabled": true,
+                          "filter": {
+                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                          },
+                          "legend": "",
+                          "name": "B",
+                          "signal": "traces",
+                          "source": ""
+                        }
+                      },
+                      {
+                        "type": "builder_formula",
+                        "spec": {
+                          "disabled": false,
+                          "expression": "(A/B)*100",
+                          "legend": "failed %",
+                          "name": "F1"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "4aba45f2-ac4d-5502-ac8e-2b3f271e6f72": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "p95 run time",
+            "description": "95th percentile of toolshelf.run duration."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "ns"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "expression": "p95(duration_nano)"
+                            }
+                          ],
+                          "disabled": false,
+                          "filter": {
+                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                          },
+                          "legend": "",
+                          "name": "A",
+                          "signal": "traces",
+                          "source": ""
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "02f59e7f-2b93-55cb-a731-aeebd4206d20": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Blocked",
+            "description": "Blocklist hits through run (the Claude hook's are in blocked.jsonl)."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT count() AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'toolshelf.blocked'",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "22c51061-f295-50d6-a873-0bb2b7393a10": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Runs by agent",
+            "description": "Count of runs per agent.client."
+          },
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "chartAppearance": {
+                "fillMode": "none",
+                "lineInterpolation": "spline",
+                "lineStyle": "solid",
+                "showPoints": false,
+                "spanGaps": {
+                  "fillLessThan": "",
+                  "fillOnlyBelow": false
+                }
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "expression": "count()"
+                            }
+                          ],
+                          "disabled": false,
+                          "filter": {
+                            "expression": "service.name = 'toolshelf' AND name = 'toolshelf.run'"
+                          },
+                          "groupBy": [
+                            {
+                              "fieldContext": "resource",
+                              "fieldDataType": "string",
+                              "name": "agent.client",
+                              "signal": ""
+                            },
+                            {
+                              "fieldContext": "resource",
+                              "fieldDataType": "string",
+                              "name": "agent.config",
+                              "signal": ""
+                            }
+                          ],
+                          "legend": "{{agent.client}} {{agent.config}}",
+                          "name": "A",
+                          "signal": "traces",
+                          "source": ""
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "17d198a7-c6c4-55f7-abf4-183aa866bc00": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "p95 time per phase",
+            "description": "Hourly p95 of each span (check, prepare, exec, docker.*), in ms."
+          },
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "chartAppearance": {
+                "fillMode": "none",
+                "lineInterpolation": "spline",
+                "lineStyle": "solid",
+                "showPoints": false,
+                "spanGaps": {
+                  "fillLessThan": "",
+                  "fillOnlyBelow": false
+                }
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "ms"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  toStartOfInterval(timestamp, INTERVAL 1 HOUR) AS ts,\n  name AS phase,\n  quantile(0.95)(duration_nano) / 1e6 AS value\nFROM signoz_traces.distributed_signoz_index_v3\nWHERE timestamp BETWEEN fromUnixTimestamp64Nano(toInt64({{.start_timestamp_nano}})) AND fromUnixTimestamp64Nano(toInt64({{.end_timestamp_nano}}))\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND resources_string['service.name'] = 'toolshelf'\nGROUP BY ts, phase\nORDER BY ts",
+                          "disabled": false,
+                          "legend": "{{phase}}"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ec9f0361-172e-5548-a2c6-640bc01ab274": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Runs by program",
+            "description": "Grouped by the command's first program."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  attributes_string['toolshelf.command.name'] AS program,\n  resources_string['agent.client'] AS client,\n  resources_string['agent.config'] AS agent_config,\n  attributes_string['toolshelf.mode'] AS mode,\n  count() AS runs,\n  countIf(has_error) AS failed,\n  round(quantile(0.5)(duration_nano) / 1e6) AS p50_ms,\n  round(quantile(0.95)(duration_nano) / 1e6) AS p95_ms\nFROM signoz_traces.distributed_signoz_index_v3\nWHERE timestamp BETWEEN fromUnixTimestamp64Nano(toInt64({{.start_timestamp_nano}})) AND fromUnixTimestamp64Nano(toInt64({{.end_timestamp_nano}}))\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND resources_string['service.name'] = 'toolshelf' AND name = 'toolshelf.run'\nGROUP BY program, client, agent_config, mode\nORDER BY runs DESC\nLIMIT 30",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ff3efcd5-27a6-59ae-a767-d06fcc5458e4": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Time per phase",
+            "description": "toolshelf's own overhead = toolshelf.run minus sandbox.exec / docker.exec."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  name AS phase,\n  count() AS spans,\n  round(quantile(0.5)(duration_nano) / 1e6, 1) AS p50_ms,\n  round(quantile(0.95)(duration_nano) / 1e6, 1) AS p95_ms,\n  round(100 * countIf(has_error) / count(), 1) AS error_pct\nFROM signoz_traces.distributed_signoz_index_v3\nWHERE timestamp BETWEEN fromUnixTimestamp64Nano(toInt64({{.start_timestamp_nano}})) AND fromUnixTimestamp64Nano(toInt64({{.end_timestamp_nano}}))\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND resources_string['service.name'] = 'toolshelf'\nGROUP BY phase\nORDER BY p95_ms DESC",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ea63757f-4c58-5a6c-a8c9-5bdd0ea45f42": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Runs by project",
+            "description": "Projects and tool versions agents built."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  attributes_string['toolshelf.project'] AS project,\n  attributes_string['toolshelf.tools'] AS tools,\n  count() AS runs,\n  countIf(has_error) AS failed,\n  round(sum(duration_nano) / 1e9) AS total_s\nFROM signoz_traces.distributed_signoz_index_v3\nWHERE timestamp BETWEEN fromUnixTimestamp64Nano(toInt64({{.start_timestamp_nano}})) AND fromUnixTimestamp64Nano(toInt64({{.end_timestamp_nano}}))\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND resources_string['service.name'] = 'toolshelf' AND name = 'toolshelf.run'\nGROUP BY project, tools\nORDER BY runs DESC\nLIMIT 30",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "c657242c-10f9-5a41-adac-06362ba3f712": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Failed runs",
+            "description": "Newest first. run_id = the log at ~/.local/state/toolshelf/runs/<run_id>.log."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  timestamp AS time,\n  resources_string['agent.client'] AS client,\n  resources_string['agent.config'] AS agent_config,\n  attributes_string['toolshelf.project'] AS project,\n  attributes_string['toolshelf.command.name'] AS program,\n  attributes_number['process.exit.code'] AS exit_code,\n  status_message AS status,\n  substring(attributes_string['toolshelf.command'], 1, 200) AS command,\n  attributes_string['toolshelf.run_id'] AS run_id\nFROM signoz_traces.distributed_signoz_index_v3\nWHERE timestamp BETWEEN fromUnixTimestamp64Nano(toInt64({{.start_timestamp_nano}})) AND fromUnixTimestamp64Nano(toInt64({{.end_timestamp_nano}}))\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND resources_string['service.name'] = 'toolshelf' AND name = 'toolshelf.run' AND has_error\nORDER BY timestamp DESC\nLIMIT 50",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "9155b0a1-785c-5eaa-a9f3-1d3173fcb508": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Blocked commands",
+            "description": "Which rule stopped which command."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  fromUnixTimestamp64Nano(timestamp) AS time,\n  resources_string['agent.client'] AS client,\n  attributes_string['toolshelf.project'] AS project,\n  attributes_string['toolshelf.block_reason'] AS reason,\n  attributes_string['toolshelf.command'] AS command\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'toolshelf.blocked'\nORDER BY timestamp DESC\nLIMIT 50",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "refreshInterval": "",
+    "variables": []
+  }
+}

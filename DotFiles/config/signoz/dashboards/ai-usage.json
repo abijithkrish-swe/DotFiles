@@ -1,0 +1,1007 @@
+{
+  "schemaVersion": "v6",
+  "name": "ai-usage",
+  "image": "/assets/Icons/eight-ball",
+  "tags": [
+    "ai",
+    "claude-code",
+    "codex"
+  ],
+  "spec": {
+    "display": {
+      "name": "AI usage: spend, tokens, work",
+      "description": "Claude Code (claude / myclaude) and Codex: cost, tokens, cache, prompts, active time, API latency. Cost is Claude Code's own cost_usd; Codex reports tokens only. Days are IST. Built by DotFiles/config/signoz/dashboards/build.mjs."
+    },
+    "duration": "",
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Spend"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/d0f1db0d-9c02-581e-a62f-2cd171410279"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/be6dc9e3-6bd2-5b86-ab7b-0a4afc1b43d1"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 3,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/1638f9f8-c5a9-5b4f-a61f-22d0ca7954e9"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 6,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/43538afa-b2d9-5916-ab4f-68804c4a175a"
+              },
+              "height": 3,
+              "width": 3,
+              "x": 9,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/d641d31c-403b-5cf4-abd1-8728d1e9bff9"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 0,
+              "y": 3
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/2f542916-0101-57f5-ac9b-d907343d6ed2"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 6,
+              "y": 3
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/ed0f62d7-02f8-5468-a063-6797cd7ed740"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 0,
+              "y": 9
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/71935a04-a880-5881-a8f9-3aaae94b9dcd"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 6,
+              "y": 9
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Tokens"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/60c64747-0310-5ede-a09f-48ce501668eb"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/4ae24113-be38-5f70-a0a8-a07ab232bcba"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 6,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/547cd7c7-a966-5c8c-ac8c-234684ec8cb7"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 6
+            }
+          ]
+        }
+      },
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Work"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/c1a2130f-b208-5800-a741-55edf26b6800"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/af40dcc4-c8de-53f1-a5a9-fbb9ce52db20"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 6,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/6d630c28-40c3-569c-a1ce-79a18a561445"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 6
+            }
+          ]
+        }
+      }
+    ],
+    "panels": {
+      "d0f1db0d-9c02-581e-a62f-2cd171410279": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Cost today (IST)",
+            "description": "Claude Code cost since midnight IST (ignores the time range)."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "currencyUSD"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT sum(attributes_number['cost_usd']) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp >= toUnixTimestamp(toStartOfDay(now(), 'Asia/Kolkata')) * 1000000000\n  AND ts_bucket_start >= toUnixTimestamp(toStartOfDay(now(), 'Asia/Kolkata')) - 1800\n  AND attributes_string['event.name'] = 'api_request'",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "be6dc9e3-6bd2-5b86-ab7b-0a4afc1b43d1": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Cost in range",
+            "description": "Claude Code cost in the selected time range."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "currencyUSD"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT sum(attributes_number['cost_usd']) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "1638f9f8-c5a9-5b4f-a61f-22d0ca7954e9": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Prompts in range",
+            "description": "Prompts typed into Claude Code and Codex."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT count() AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] IN ('user_prompt', 'codex.user_prompt')",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "43538afa-b2d9-5916-ab4f-68804c4a175a": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Sessions in range",
+            "description": "Claude Code sessions plus Codex conversations with at least one prompt."
+          },
+          "plugin": {
+            "kind": "signoz/NumberPanel",
+            "spec": {
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT uniqExact(attributes_string['session.id']) + uniqExactIf(attributes_string['conversation.id'], attributes_string['conversation.id'] != '') AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] IN ('user_prompt', 'codex.user_prompt')",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "d641d31c-403b-5cf4-abd1-8728d1e9bff9": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Cost per day by config",
+            "description": "One bar per IST day, stacked by agent.config."
+          },
+          "plugin": {
+            "kind": "signoz/BarChartPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "currencyUSD"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false,
+                "stackedBarChart": true
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  toStartOfDay(fromUnixTimestamp64Nano(timestamp), 'Asia/Kolkata') AS ts,\n  resources_string['agent.config'] AS agent_config,\n  sum(attributes_number['cost_usd']) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY ts, agent_config\nORDER BY ts",
+                          "disabled": false,
+                          "legend": "{{agent_config}}"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "2f542916-0101-57f5-ac9b-d907343d6ed2": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Cost over time (metric)",
+            "description": "claude_code.cost.usage: Increase / Sum by agent.config. Trails the events by up to 15 s."
+          },
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "chartAppearance": {
+                "fillMode": "none",
+                "lineInterpolation": "spline",
+                "lineStyle": "solid",
+                "showPoints": false,
+                "spanGaps": {
+                  "fillLessThan": "",
+                  "fillOnlyBelow": false
+                }
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "currencyUSD"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "metricName": "claude_code.cost.usage",
+                              "spaceAggregation": "sum",
+                              "temporality": "",
+                              "timeAggregation": "increase"
+                            }
+                          ],
+                          "disabled": false,
+                          "filter": {
+                            "expression": ""
+                          },
+                          "groupBy": [
+                            {
+                              "fieldContext": "resource",
+                              "fieldDataType": "string",
+                              "name": "agent.config",
+                              "signal": ""
+                            }
+                          ],
+                          "legend": "{{agent.config}}",
+                          "name": "A",
+                          "signal": "metrics",
+                          "source": ""
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "ed0f62d7-02f8-5468-a063-6797cd7ed740": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Cost by model",
+            "description": "Requests, total and average cost per model and config."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  attributes_string['model'] AS model,\n  resources_string['agent.config'] AS agent_config,\n  count() AS requests,\n  round(sum(attributes_number['cost_usd']), 2) AS cost_usd,\n  round(avg(attributes_number['cost_usd']), 4) AS avg_cost_per_request\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY model, agent_config\nORDER BY cost_usd DESC",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "71935a04-a880-5881-a8f9-3aaae94b9dcd": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Cost by repository",
+            "description": "Where the money goes, per repo (vcs.repository.name)."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  if(attributes_string['vcs.repository.name'] = '', '(no repo)', attributes_string['vcs.repository.name']) AS repository,\n  resources_string['agent.config'] AS agent_config,\n  count() AS requests,\n  round(sum(attributes_number['cost_usd']), 2) AS cost_usd\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY repository, agent_config\nORDER BY cost_usd DESC\nLIMIT 20",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "60c64747-0310-5ede-a09f-48ce501668eb": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Claude tokens by type",
+            "description": "claude_code.token.usage: Increase / Sum by type and agent.config."
+          },
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "chartAppearance": {
+                "fillMode": "none",
+                "lineInterpolation": "spline",
+                "lineStyle": "solid",
+                "showPoints": false,
+                "spanGaps": {
+                  "fillLessThan": "",
+                  "fillOnlyBelow": false
+                }
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "metricName": "claude_code.token.usage",
+                              "spaceAggregation": "sum",
+                              "temporality": "",
+                              "timeAggregation": "increase"
+                            }
+                          ],
+                          "disabled": false,
+                          "filter": {
+                            "expression": ""
+                          },
+                          "groupBy": [
+                            {
+                              "fieldContext": "",
+                              "fieldDataType": "",
+                              "name": "type",
+                              "signal": ""
+                            },
+                            {
+                              "fieldContext": "resource",
+                              "fieldDataType": "string",
+                              "name": "agent.config",
+                              "signal": ""
+                            }
+                          ],
+                          "legend": "{{type}} · {{agent.config}}",
+                          "name": "A",
+                          "signal": "metrics",
+                          "source": ""
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "4ae24113-be38-5f70-a0a8-a07ab232bcba": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Codex tokens by type",
+            "description": "codex.turn.token_usage.sum by token_type and model."
+          },
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "chartAppearance": {
+                "fillMode": "none",
+                "lineInterpolation": "spline",
+                "lineStyle": "solid",
+                "showPoints": false,
+                "spanGaps": {
+                  "fillLessThan": "",
+                  "fillOnlyBelow": false
+                }
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "metricName": "codex.turn.token_usage.sum",
+                              "spaceAggregation": "sum",
+                              "temporality": "",
+                              "timeAggregation": "increase"
+                            }
+                          ],
+                          "disabled": false,
+                          "filter": {
+                            "expression": ""
+                          },
+                          "groupBy": [
+                            {
+                              "fieldContext": "",
+                              "fieldDataType": "",
+                              "name": "token_type",
+                              "signal": ""
+                            },
+                            {
+                              "fieldContext": "",
+                              "fieldDataType": "",
+                              "name": "model",
+                              "signal": ""
+                            }
+                          ],
+                          "legend": "{{token_type}} · {{model}}",
+                          "name": "A",
+                          "signal": "metrics",
+                          "source": ""
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "547cd7c7-a966-5c8c-ac8c-234684ec8cb7": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Prompt cache by config",
+            "description": "cache_hit_pct = cache reads / all input. A drop means something keeps breaking the cache."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  resources_string['agent.config'] AS agent_config,\n  sum(attributes_number['cache_read_tokens']) AS cache_read,\n  sum(attributes_number['input_tokens'] + attributes_number['cache_creation_tokens']) AS uncached_input,\n  sum(attributes_number['output_tokens']) AS output,\n  round(100 * cache_read / nullIf(cache_read + uncached_input, 0), 1) AS cache_hit_pct\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY agent_config",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "c1a2130f-b208-5800-a741-55edf26b6800": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Prompts per day by source",
+            "description": "claude, myclaude and codex, per IST day: the like-for-like comparison."
+          },
+          "plugin": {
+            "kind": "signoz/BarChartPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false,
+                "stackedBarChart": true
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  toStartOfDay(fromUnixTimestamp64Nano(timestamp), 'Asia/Kolkata') AS ts,\n  if(resources_string['service.name'] = 'claude-code', resources_string['agent.config'], 'codex') AS source,\n  count() AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] IN ('user_prompt', 'codex.user_prompt')\nGROUP BY ts, source\nORDER BY ts",
+                          "disabled": false,
+                          "legend": "{{source}}"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "af40dcc4-c8de-53f1-a5a9-fbb9ce52db20": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Active time",
+            "description": "claude_code.active_time.total: user = you typing, cli = Claude working."
+          },
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "chartAppearance": {
+                "fillMode": "none",
+                "lineInterpolation": "spline",
+                "lineStyle": "solid",
+                "showPoints": false,
+                "spanGaps": {
+                  "fillLessThan": "",
+                  "fillOnlyBelow": false
+                }
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "s"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "builder_query",
+                        "spec": {
+                          "aggregations": [
+                            {
+                              "metricName": "claude_code.active_time.total",
+                              "spaceAggregation": "sum",
+                              "temporality": "",
+                              "timeAggregation": "increase"
+                            }
+                          ],
+                          "disabled": false,
+                          "filter": {
+                            "expression": ""
+                          },
+                          "groupBy": [
+                            {
+                              "fieldContext": "resource",
+                              "fieldDataType": "string",
+                              "name": "agent.config",
+                              "signal": ""
+                            },
+                            {
+                              "fieldContext": "",
+                              "fieldDataType": "",
+                              "name": "type",
+                              "signal": ""
+                            }
+                          ],
+                          "legend": "{{agent.config}} · {{type}}",
+                          "name": "A",
+                          "signal": "metrics",
+                          "source": ""
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "6d630c28-40c3-569c-a1ce-79a18a561445": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "API latency by model",
+            "description": "p50/p95 request duration and time to first token (ms)."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  attributes_string['model'] AS model,\n  count() AS requests,\n  round(quantile(0.5)(attributes_number['duration_ms'])) AS p50_ms,\n  round(quantile(0.95)(attributes_number['duration_ms'])) AS p95_ms,\n  round(quantile(0.5)(attributes_number['ttft_ms'])) AS p50_ttft_ms,\n  round(quantile(0.95)(attributes_number['ttft_ms'])) AS p95_ttft_ms\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY model\nORDER BY requests DESC",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "refreshInterval": "",
+    "variables": []
+  }
+}

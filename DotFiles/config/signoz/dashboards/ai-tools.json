@@ -1,0 +1,320 @@
+{
+  "schemaVersion": "v6",
+  "name": "ai-tools",
+  "image": "/assets/Icons/eight-ball",
+  "tags": [
+    "ai",
+    "tools",
+    "mcp"
+  ],
+  "spec": {
+    "display": {
+      "name": "AI tools: what agents use",
+      "description": "Tools and MCP calls in Claude Code and Codex, with success rates, durations and approval decisions. Built by DotFiles/config/signoz/dashboards/build.mjs."
+    },
+    "duration": "",
+    "layouts": [
+      {
+        "kind": "Grid",
+        "spec": {
+          "display": {
+            "title": "Usage"
+          },
+          "items": [
+            {
+              "content": {
+                "$ref": "#/spec/panels/505b2170-bd0f-5429-a6ff-9a288c234603"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 0
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/9e2e8bef-6242-5af1-a1f0-a26691c42b1c"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 6
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/d991e6a0-fbb1-5122-a43a-240258a75509"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 0,
+              "y": 12
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/f4721e35-ebe5-5465-a9d1-cbd2875907e8"
+              },
+              "height": 6,
+              "width": 6,
+              "x": 6,
+              "y": 12
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/b36e4256-872b-5db1-a8a4-27c7d2a94831"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 18
+            }
+          ]
+        }
+      }
+    ],
+    "panels": {
+      "505b2170-bd0f-5429-a6ff-9a288c234603": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Tool calls per hour",
+            "description": "tool_result events by source."
+          },
+          "plugin": {
+            "kind": "signoz/TimeSeriesPanel",
+            "spec": {
+              "axes": {
+                "isLogScale": false,
+                "softMax": null,
+                "softMin": null
+              },
+              "chartAppearance": {
+                "fillMode": "none",
+                "lineInterpolation": "spline",
+                "lineStyle": "solid",
+                "showPoints": false,
+                "spanGaps": {
+                  "fillLessThan": "",
+                  "fillOnlyBelow": false
+                }
+              },
+              "formatting": {
+                "decimalPrecision": "2",
+                "unit": "short"
+              },
+              "legend": {
+                "customColors": null,
+                "mode": "list",
+                "position": "bottom"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time",
+                "fillSpans": false
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "time_series",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  toStartOfInterval(fromUnixTimestamp64Nano(timestamp), INTERVAL 1 HOUR) AS ts,\n  if(resources_string['service.name'] = 'claude-code', resources_string['agent.config'], 'codex') AS source,\n  count() AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] IN ('tool_result', 'codex.tool_result')\nGROUP BY ts, source\nORDER BY ts",
+                          "disabled": false,
+                          "legend": "{{source}}"
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "9e2e8bef-6242-5af1-a1f0-a26691c42b1c": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Claude Code tools",
+            "description": "bash:<program> and mcp:<server>/<tool> are split out of Bash and mcp_tool."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  multiIf(\n    attributes_string['tool_name'] = 'mcp_tool',\n      concat('mcp:', JSONExtractString(attributes_string['tool_parameters'], 'mcp_server_name'),\n             '/', JSONExtractString(attributes_string['tool_parameters'], 'mcp_tool_name')),\n    attributes_string['tool_name'] = 'Bash',\n      concat('bash:', replaceRegexpOne(arrayFirst(w -> NOT match(w, '^\\\\w+='), splitByWhitespace(replaceRegexpOne(JSONExtractString(attributes_string['tool_parameters'], 'full_command'), '^(\\\\s*cd\\\\s+\\\\S+\\\\s*(&&|;)\\\\s*)+', ''))), '^.*/', '')),\n    attributes_string['tool_name']) AS tool,\n  resources_string['agent.config'] AS agent_config,\n  count() AS calls,\n  round(100 * countIf(attributes_string['success'] = 'true') / count(), 1) AS success_pct,\n  round(quantile(0.5)(toFloat64OrZero(attributes_string['duration_ms']))) AS p50_ms,\n  round(quantile(0.95)(toFloat64OrZero(attributes_string['duration_ms']))) AS p95_ms\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'tool_result'\nGROUP BY tool, agent_config\nORDER BY calls DESC\nLIMIT 40",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "d991e6a0-fbb1-5122-a43a-240258a75509": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "MCP calls by server",
+            "description": "Across Claude Code and Codex."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  if(event = 'tool_result', concat('claude-code ', agent_config), 'codex') AS agent,\n  server, tool, count() AS calls\nFROM (\n  SELECT\n    attributes_string['event.name'] AS event,\n    resources_string['agent.config'] AS agent_config,\n    if(event = 'tool_result', JSONExtractString(attributes_string['tool_parameters'], 'mcp_server_name'), attributes_string['mcp_server']) AS server,\n    if(event = 'tool_result', JSONExtractString(attributes_string['tool_parameters'], 'mcp_tool_name'), attributes_string['tool_name']) AS tool\n  FROM signoz_logs.distributed_logs_v2\n  WHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n    AND ((attributes_string['event.name'] = 'tool_result' AND attributes_string['tool_name'] = 'mcp_tool')\n      OR (attributes_string['event.name'] = 'codex.tool_result' AND attributes_string['mcp_server'] != ''))\n)\nGROUP BY agent, server, tool\nORDER BY calls DESC\nLIMIT 30",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "f4721e35-ebe5-5465-a9d1-cbd2875907e8": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Codex tools",
+            "description": "Codex logs no output (tool_result.max_bytes = 0)."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  if(attributes_string['mcp_server'] = '', attributes_string['tool_name'],\n     concat('mcp:', attributes_string['mcp_server'], '/', attributes_string['tool_name'])) AS tool,\n  count() AS calls,\n  round(100 * countIf(attributes_string['success'] = 'true') / count(), 1) AS success_pct,\n  round(quantile(0.5)(toFloat64OrZero(attributes_string['duration_ms']))) AS p50_ms,\n  round(quantile(0.95)(toFloat64OrZero(attributes_string['duration_ms']))) AS p95_ms\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'codex.tool_result'\nGROUP BY tool\nORDER BY calls DESC\nLIMIT 25",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "b36e4256-872b-5db1-a8a4-27c7d2a94831": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Tool approvals",
+            "description": "Claude Code tool_decision: accepted or rejected, and by whom (config rule, hook, you)."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  attributes_string['tool_name'] AS tool,\n  resources_string['agent.config'] AS agent_config,\n  attributes_string['decision_type'] AS decision,\n  attributes_string['decision_source'] AS decided_by,\n  count() AS times\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'tool_decision'\nGROUP BY tool, agent_config, decision, decided_by\nORDER BY times DESC\nLIMIT 30",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      }
+    },
+    "refreshInterval": "",
+    "variables": []
+  }
+}

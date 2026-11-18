@@ -102,6 +102,19 @@ named **`value`**, and optional label columns (one line per label value).
 **Days are IST:** ClickHouse runs in UTC, so day buckets use
 `toStartOfDay(…, 'Asia/Kolkata')`. Otherwise "today" would start at 05:30.
 
+## Ready-made: the three dashboards
+
+`DotFiles/config/signoz/dashboards/` holds three generated dashboards, built
+from the tested queries in `sql/` by `build.mjs`:
+- `ai-usage.json`: spend, tokens, cache, prompts, active time, API latency.
+- `ai-tools.json`: Claude Code and Codex tools, MCP calls, approvals.
+- `toolshelf.json`: runs, failures, time per phase, blocked commands.
+
+Import each one: **Dashboards → New dashboard → Import JSON → Upload JSON
+file**. To change a panel, edit `build.mjs` or a `.sql` file, run `node
+build.mjs`, and re-import. The rest of this guide explains how those panels
+work, so you can build or change your own.
+
 ## 2. Start with the built-in AI dashboard
 
 Your SigNoz already has **Dashboards → AI Observability Overview**, about 30
