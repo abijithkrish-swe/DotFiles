@@ -159,6 +159,11 @@ const dashboards = {
         [panel("table", "Cost by model", "Requests, total and average cost per model and config.", [ch("cost_by_model")]), 6],
         [panel("table", "Cost by repository", "Where the money goes, per repo (vcs.repository.name).", [ch("cost_by_repo")]), 6],
       ]],
+      ["claude vs myclaude", [
+        [panel("table", "Usage rate by config", "Per active day (IST). api_equiv_usd is Claude Code's cost_usd: what the API would charge, not what the plan bills.", [ch("config_compare")]), 12],
+        [panel("time_series", "Output tokens per 5 hours", "Tumbling 5-hour IST blocks: a rough view of the plans' 5-hour usage windows (the real windows start at your first message).", [ch("usage_per_5h", "{{agent_config}}")], "short"), 6],
+        [panel("table", "Cost by hour of day (IST)", "When each config is used.", [ch("cost_by_hour_of_day")]), 6],
+      ]],
       ["Tokens", [
         [panel("time_series", "Claude tokens by type", "claude_code.token.usage: Increase / Sum by type and agent.config.",
           [metric("claude_code.token.usage", [field("type"), resource("agent.config")], "{{type}} · {{agent.config}}")], "short"), 6],
