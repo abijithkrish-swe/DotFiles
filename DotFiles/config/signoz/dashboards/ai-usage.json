@@ -88,6 +88,15 @@
               "width": 6,
               "x": 6,
               "y": 9
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/3da9e992-2c20-54e5-af20-acb8c5ba0f9a"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 15
             }
           ]
         }
@@ -610,6 +619,50 @@
                         "spec": {
                           "name": "A",
                           "query": "SELECT\n  if(attributes_string['vcs.repository.name'] = '', '(no repo)', attributes_string['vcs.repository.name']) AS repository,\n  resources_string['agent.config'] AS agent_config,\n  count() AS requests,\n  round(sum(attributes_number['cost_usd']), 2) AS cost_usd\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY repository, agent_config\nORDER BY cost_usd DESC\nLIMIT 20",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "3da9e992-2c20-54e5-af20-acb8c5ba0f9a": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Models per project",
+            "description": "Which model each project used: share of the project's requests, cost and output tokens."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "SELECT\n  if(attributes_string['vcs.repository.name'] = '', '(no repo)', attributes_string['vcs.repository.name']) AS project,\n  attributes_string['model'] AS model,\n  resources_string['agent.config'] AS agent_config,\n  count() AS requests,\n  round(100 * count() / sum(count()) OVER (PARTITION BY project, agent_config), 1) AS pct_of_project_requests,\n  round(sum(attributes_number['cost_usd']), 2) AS cost_usd,\n  sum(attributes_number['output_tokens']) AS output_tokens\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY project, model, agent_config\nORDER BY project, cost_usd DESC",
                           "disabled": false
                         }
                       }

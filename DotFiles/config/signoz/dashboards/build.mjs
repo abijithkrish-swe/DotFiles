@@ -158,6 +158,7 @@ const dashboards = {
           [metric("claude_code.cost.usage", [resource("agent.config")], "{{agent.config}}")], "currencyUSD"), 6],
         [panel("table", "Cost by model", "Requests, total and average cost per model and config.", [ch("cost_by_model")]), 6],
         [panel("table", "Cost by repository", "Where the money goes, per repo (vcs.repository.name).", [ch("cost_by_repo")]), 6],
+        [panel("table", "Models per project", "Which model each project used: share of the project's requests, cost and output tokens.", [ch("model_by_project")]), 12],
       ]],
       ["claude vs myclaude", [
         [panel("table", "Usage rate by config", "Per active day (IST). api_equiv_usd is Claude Code's cost_usd: what the API would charge, not what the plan bills.", [ch("config_compare")]), 12],
