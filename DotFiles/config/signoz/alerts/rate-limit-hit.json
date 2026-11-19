@@ -54,7 +54,7 @@
     "requireMinPoints": false
   },
   "annotations": {
-    "summary": "{{agent.config}} hit its rate limit",
+    "summary": "{{index $labels \"agent.config\"}} hit its rate limit",
     "description": ""
   },
   "labels": {},

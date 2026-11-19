@@ -38,7 +38,7 @@
     "requireMinPoints": false
   },
   "annotations": {
-    "summary": "{{agent_config}}: ${{$value}} today (budget ${{$threshold}})",
+    "summary": "{{index $labels \"agent_config\"}}: ${{$value}} today (budget ${{$threshold}})",
     "description": ""
   },
   "labels": {},

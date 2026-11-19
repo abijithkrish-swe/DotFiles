@@ -54,7 +54,7 @@
     "requireMinPoints": false
   },
   "annotations": {
-    "summary": "{{$value}} failed toolshelf runs from {{agent.client}} in the last hour",
+    "summary": "{{$value}} failed toolshelf runs from {{index $labels \"agent.client\"}} in the last hour",
     "description": ""
   },
   "labels": {},
