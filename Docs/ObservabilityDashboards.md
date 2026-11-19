@@ -520,6 +520,22 @@ shows up only under **Alerts → Triggered Alerts**. Every channel (Slack, email
 sends data off the Mac except a webhook to localhost. A small local receiver
 that turns it into a macOS notification is a possible later step.
 
+**Ready-made rules:** `DotFiles/config/signoz/alerts/*.json` holds all four
+alerts (rate limit, daily cost, blocked command, toolshelf failures) in
+SigNoz v0.149's `v2alpha1` format. They notify the channel named **Telegram
+Alert**. To load them on a new machine, create a service-account key
+(Settings → Service accounts), then:
+
+```
+use_secret SIGNOZ_API_KEY
+SIGNOZ_API_KEY=${SIGNOZ_API_KEY//[$'\r\n']/}   # the vault value may end in a newline: Go answers a plain "400 Bad Request"
+cd ~/Projects/Personal/zshrc/configured/DotFiles/config/signoz/alerts
+for f in *.json; do
+  curl -sS --noproxy '*' -X POST http://127.0.0.1:18080/api/v2/rules \
+    -H "SIGNOZ-API-KEY: $SIGNOZ_API_KEY" -H 'Content-Type: application/json' --data @$f -w '\nHTTP %{http_code}\n'
+done
+```
+
 **SRE habit:** for every alert, write down what you would *do* when it fires.
 If the answer is "nothing", it's a dashboard panel, not an alert.
 
