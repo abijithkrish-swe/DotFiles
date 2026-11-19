@@ -11,7 +11,9 @@
           "target": 60,
           "matchType": "last",
           "op": "above",
-          "channels": ["Telegram Alert"],
+          "channels": [
+            "Telegram Alert"
+          ],
           "targetUnit": ""
         }
       ]
@@ -26,7 +28,7 @@
           "spec": {
             "name": "A",
             "disabled": false,
-            "query": "-- Claude Code cost since midnight IST, per config (ignores the rolling window)\nSELECT\n  toStartOfDay(now(), 'Asia/Kolkata') AS interval,\n  resources_string['agent.config'] AS agent_config,\n  sum(attributes_number['cost_usd']) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp >= toUnixTimestamp(toStartOfDay(now(), 'Asia/Kolkata')) * 1000000000\n  AND ts_bucket_start >= toUnixTimestamp(toStartOfDay(now(), 'Asia/Kolkata')) - 1800\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY interval, agent_config"
+            "query": "-- Claude Code cost since midnight IST, per config (ignores the rolling window)\nSELECT\n  toStartOfDay(now(), 'Asia/Kolkata') AS interval,\n  resources_string['agent.config'] AS agent_config,\n  round(sum(attributes_number['cost_usd']), 2) AS value\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp >= toUnixTimestamp(toStartOfDay(now(), 'Asia/Kolkata')) * 1000000000\n  AND ts_bucket_start >= toUnixTimestamp(toStartOfDay(now(), 'Asia/Kolkata')) - 1800\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY interval, agent_config"
           }
         }
       ]
@@ -36,18 +38,25 @@
     "requireMinPoints": false
   },
   "annotations": {
-    "description": "{{$labels.agent_config}} has used ${{$value}} (API-equivalent) today, IST. Budget: ${{$threshold}}.",
-    "summary": "{{$labels.agent_config}} is over today's AI budget"
+    "summary": "{{agent_config}}: ${{$value}} today (budget ${{$threshold}})",
+    "description": ""
   },
   "labels": {},
   "notificationSettings": {
     "groupBy": [],
     "usePolicy": false,
-    "renotify": { "enabled": false, "interval": "30m", "alertStates": [] }
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": []
+    }
   },
   "evaluation": {
     "kind": "rolling",
-    "spec": { "evalWindow": "5m0s", "frequency": "5m" }
+    "spec": {
+      "evalWindow": "5m0s",
+      "frequency": "5m"
+    }
   },
   "schemaVersion": "v2alpha1",
   "version": "v5"

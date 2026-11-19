@@ -54,8 +54,8 @@
     "requireMinPoints": false
   },
   "annotations": {
-    "description": "{{$value}} rate-limit error(s) in the last 15 minutes: the plan's usage window is used up.",
-    "summary": "Claude hit its rate limit"
+    "summary": "{{agent.config}} hit its rate limit",
+    "description": ""
   },
   "labels": {},
   "notificationSettings": {
