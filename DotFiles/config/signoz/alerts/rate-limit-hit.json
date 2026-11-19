@@ -1,0 +1,79 @@
+{
+  "alert": "Rate limit hit",
+  "alertType": "LOGS_BASED_ALERT",
+  "ruleType": "threshold_rule",
+  "condition": {
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "critical",
+          "target": 0,
+          "matchType": "at_least_once",
+          "op": "above",
+          "channels": [
+            "Telegram Alert"
+          ],
+          "targetUnit": ""
+        }
+      ]
+    },
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "unit": "",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "logs",
+            "stepInterval": null,
+            "disabled": false,
+            "filter": {
+              "expression": "attribute.event.name = 'api_error' AND error CONTAINS 'rate limit'"
+            },
+            "groupBy": [
+              {
+                "name": "agent.config",
+                "fieldDataType": "string",
+                "fieldContext": "resource"
+              }
+            ],
+            "aggregations": [
+              {
+                "expression": "count()"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    "selectedQueryName": "A",
+    "alertOnAbsent": false,
+    "requireMinPoints": false
+  },
+  "annotations": {
+    "description": "{{$value}} rate-limit error(s) in the last 15 minutes: the plan's usage window is used up.",
+    "summary": "Claude hit its rate limit"
+  },
+  "labels": {},
+  "notificationSettings": {
+    "groupBy": [],
+    "usePolicy": false,
+    "renotify": {
+      "enabled": false,
+      "interval": "30m",
+      "alertStates": []
+    }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": {
+      "evalWindow": "15m0s",
+      "frequency": "1m"
+    }
+  },
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

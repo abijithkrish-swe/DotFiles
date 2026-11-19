@@ -1,0 +1,57 @@
+{
+  "alert": "toolshelf blocked a command",
+  "alertType": "LOGS_BASED_ALERT",
+  "ruleType": "threshold_rule",
+  "condition": {
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "critical",
+          "target": 0,
+          "matchType": "at_least_once",
+          "op": "above",
+          "channels": ["Telegram Alert"],
+          "targetUnit": ""
+        }
+      ]
+    },
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "unit": "",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "logs",
+            "stepInterval": null,
+            "disabled": false,
+            "filter": { "expression": "attribute.event.name = 'toolshelf.blocked'" },
+            "aggregations": [{ "expression": "count()" }]
+          }
+        }
+      ]
+    },
+    "selectedQueryName": "A",
+    "alertOnAbsent": false,
+    "requireMinPoints": false
+  },
+  "annotations": {
+    "description": "An agent tried {{$value}} blocklisted command(s) through toolshelf run in the last hour. See the toolshelf dashboard (Blocked commands) or toolshelf_report.",
+    "summary": "toolshelf blocked an agent command"
+  },
+  "labels": {},
+  "notificationSettings": {
+    "groupBy": [],
+    "usePolicy": false,
+    "renotify": { "enabled": false, "interval": "30m", "alertStates": [] }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": { "evalWindow": "1h0m0s", "frequency": "5m" }
+  },
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}

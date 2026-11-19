@@ -1,0 +1,58 @@
+{
+  "alert": "toolshelf runs failing",
+  "alertType": "TRACES_BASED_ALERT",
+  "ruleType": "threshold_rule",
+  "condition": {
+    "thresholds": {
+      "kind": "basic",
+      "spec": [
+        {
+          "name": "critical",
+          "target": 5,
+          "matchType": "in_total",
+          "op": "above",
+          "channels": ["Telegram Alert"],
+          "targetUnit": ""
+        }
+      ]
+    },
+    "compositeQuery": {
+      "queryType": "builder",
+      "panelType": "graph",
+      "unit": "",
+      "queries": [
+        {
+          "type": "builder_query",
+          "spec": {
+            "name": "A",
+            "signal": "traces",
+            "stepInterval": null,
+            "disabled": false,
+            "filter": { "expression": "service.name = 'toolshelf' AND toolshelf.mode EXISTS AND has_error = true" },
+            "groupBy": [{ "name": "agent.client", "fieldDataType": "string", "fieldContext": "resource" }],
+            "aggregations": [{ "expression": "count()" }]
+          }
+        }
+      ]
+    },
+    "selectedQueryName": "A",
+    "alertOnAbsent": false,
+    "requireMinPoints": false
+  },
+  "annotations": {
+    "description": "{{$value}} toolshelf runs from one agent failed in the last hour (the alert's labels say which). See the toolshelf dashboard (Failed runs) for the commands and run logs.",
+    "summary": "toolshelf runs are failing"
+  },
+  "labels": {},
+  "notificationSettings": {
+    "groupBy": [],
+    "usePolicy": false,
+    "renotify": { "enabled": false, "interval": "30m", "alertStates": [] }
+  },
+  "evaluation": {
+    "kind": "rolling",
+    "spec": { "evalWindow": "1h0m0s", "frequency": "5m" }
+  },
+  "schemaVersion": "v2alpha1",
+  "version": "v5"
+}
