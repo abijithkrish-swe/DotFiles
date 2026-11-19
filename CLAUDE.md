@@ -102,7 +102,7 @@ Separate history per environment — normal terminal, VS Code, IntelliJ, and Ecl
 
 ## Secrets Vault (`65-secrets-vault.zsh`)
 
-Per-secret AES-256-CBC encryption (PBKDF2, base64-stored) in `~/.config/secrets/vault.store`. No plaintext temp files at any point.
+Per-secret AES-256-CBC encryption (PBKDF2, base64-stored) in `~/.config/secrets/vault.store`. No plaintext temp files at any point. The password reaches `openssl` through a pipe (`-pass fd:3`), never argv or a here-string temp file. `show_secret` prints only the value on stdout (prompt and errors on stderr), so `$(show_secret KEY)` and `use_secret` capture exactly the secret, and a wrong password fails instead of returning garbled bytes. Tests: `zsh -f tests/vault/vault-test.zsh`.
 
 - `add_secret [KEY] [VALUE] [PASS]` — prompts if args omitted
 - `show_secret KEY` — prints decrypted value

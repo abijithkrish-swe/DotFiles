@@ -20,7 +20,9 @@ _vault_encrypt_str() {
   # -a outputs base64 directly
   # -A prevents line wrapping in base64 output (keeps on single line)
   # -salt -pbkdf2 adds security against rainbow tables
-  echo -n "$plaintext" | openssl enc -aes-256-cbc -a -A -salt -pbkdf2 -k "$pass" 2>/dev/null
+  # -pass fd:3 from <(print …): a pipe, never argv (visible in `ps`) and never
+  # a temp file (a <<< here-string would be one). Same key as the old -k.
+  print -rn -- "$plaintext" | openssl enc -aes-256-cbc -a -A -salt -pbkdf2 -pass fd:3 3< <(print -r -- "$pass") 2>/dev/null
 }
 
 _vault_decrypt_str() {
@@ -28,7 +30,7 @@ _vault_decrypt_str() {
   local pass="$2"
   # Ensure cipher is on a single line (handle legacy multi-line values)
   cipher=$(echo "$cipher" | tr -d '\n')
-  echo "$cipher" | openssl enc -aes-256-cbc -a -d -salt -pbkdf2 -k "$pass" 2>/dev/null
+  echo "$cipher" | openssl enc -aes-256-cbc -a -d -salt -pbkdf2 -pass fd:3 3< <(print -r -- "$pass") 2>/dev/null
 }
 
 _vault_get_raw() {
@@ -84,42 +86,40 @@ add_secret() {
   echo "Secret '$key' stored securely."
 }
 
+# Prints only the secret on stdout; the prompt and errors go to stderr, so
+# $(show_secret KEY) captures exactly the value. (They used to go to stdout,
+# and use_secret exported "Enter Password for 'KEY': \n<value>".)
 show_secret() {
-  local key="$1"
-  if [[ -z "$key" ]]; then echo "Usage: show_secret <KEY>"; return 1; fi
+  local key="$1" pass raw decrypted
+  if [[ -z "$key" ]]; then echo "Usage: show_secret <KEY>" >&2; return 1; fi
 
-  local raw
   raw=$(_vault_get_raw "$key")
-  
   if [[ -z "$raw" ]]; then
-    echo "Secret '$key' not found in vault."
+    echo "Secret '$key' not found in vault." >&2
     return 1
   fi
 
-  echo -n "Enter Password for '$key': "
+  echo -n "Enter Password for '$key': " >&2
   read -s pass
-  echo ""
+  echo "" >&2
 
-  local decrypted
-  decrypted=$(_vault_decrypt_str "$raw" "$pass")
-
-  if [[ -z "$decrypted" ]]; then
-    echo "Decryption failed (Wrong password?)"
+  # Check openssl's exit status, not just the output: with a wrong password
+  # it still prints the garbled blocks before failing with "bad decrypt".
+  if ! decrypted=$(_vault_decrypt_str "$raw" "$pass") || [[ -z "$decrypted" ]]; then
+    echo "Decryption failed (Wrong password?)" >&2
     return 1
   fi
 
-  echo "$decrypted"
+  print -r -- "$decrypted"
 }
 
 # Helper to "use" a secret by exporting it to current session
 use_secret() {
-  local key="$1"
-  local val
-  val=$(show_secret "$key")
-  if [[ $? -eq 0 && -n "$val" ]]; then
-    export "${key}=${val}"
-    echo "Exported $key to environment."
-  fi
+  local key="$1" val
+  val=$(show_secret "$key") || return 1
+  [[ -n "$val" ]] || return 1
+  export "${key}=${val}"
+  echo "Exported $key to environment." >&2
 }
 
 delete_secret() {

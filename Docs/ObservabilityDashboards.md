@@ -528,7 +528,6 @@ Alert**. To load them on a new machine, create a service-account key
 
 ```
 use_secret SIGNOZ_API_KEY
-SIGNOZ_API_KEY=${SIGNOZ_API_KEY//[$'\r\n']/}   # the vault value may end in a newline: Go answers a plain "400 Bad Request"
 cd ~/Projects/Personal/zshrc/configured/DotFiles/config/signoz/alerts
 for f in *.json; do
   curl -sS --noproxy '*' -X POST http://127.0.0.1:18080/api/v2/rules \
