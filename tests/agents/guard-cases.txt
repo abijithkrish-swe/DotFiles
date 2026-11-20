@@ -90,3 +90,10 @@ PASS	claude mcp get toolshelf
 PASS	claude config get theme
 PASS	codex mcp list
 PASS	zsh -f tests/installer/deploy-test.zsh
+BLOCK	colima start --kubernetes
+BLOCK	cd /tmp && colima delete -f
+BLOCK	colima ssh -- docker ps
+BLOCK	/opt/homebrew/bin/colima stop
+PASS	colima status
+PASS	colima list
+PASS	grep -n "colima start" docs/notes.md

@@ -16,6 +16,7 @@
 (^|[\s;&|(`])sudo\b ## sudo is never allowed for agents
 (^|[\s;&|(`])softwareupdate\b ## OS updates are the user's call
 xcode-select\s+--install ## installing Xcode tools is the user's call
+(^|[\s;&|(`])(\S*/)?colima\s+(start|stop|restart|delete|prune|ssh)\b ## Colima is the user's to start and stop: ask them to run costart (agents check it with toolshelf colima_status and use run with mode "docker")
 
 # --- fetch and execute --------------------------------------------------------
 (curl|wget)\b[^|]*\|\s*(sudo\s+)?(sh|bash|zsh|python3?|perl|ruby|node)\b ## piping a download into a shell runs unreviewed code
