@@ -5,6 +5,7 @@ Colima — Docker & Kubernetes (no Docker Desktop)
 ================================================
 Start / Stop:
   costart                   # start Colima (Docker + Kubernetes)
+  costart_lite              # start without Kubernetes (less RAM and idle CPU)
   corest                    # restart
   costop                    # stop
   codrop                    # delete VM (DANGER: wipes images/volumes within)
@@ -12,6 +13,16 @@ Start / Stop:
 Context:
   couse                     # set Docker CLI context to 'colima'
   coinfo                    # show Colima status + docker/kube contexts
+
+Usage & cleanup:
+  docker_usage              # VM RAM on the Mac, memory per container, disk, images by repo,
+                            # unused volumes, stopped containers (read-only)
+  docker_clean cache        # build cache
+  docker_clean dangling     # untagged images
+  docker_clean images lorebase 3 -n   # dry run: all lorebase tags except the newest 3
+  docker_clean containers   # stopped containers
+  docker_clean volumes      # unused volumes, one by one (app data! never signoz-*)
+                            # every step asks first; pinned and in-use images are kept
 
 Docker (after costart + couse):
   docker ps                 # list containers
