@@ -70,7 +70,7 @@
   "evaluation": {
     "kind": "rolling",
     "spec": {
-      "evalWindow": "15m0s",
+      "evalWindow": "1h0m0s",
       "frequency": "1m"
     }
   },
