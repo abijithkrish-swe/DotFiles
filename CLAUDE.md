@@ -125,7 +125,7 @@ Never hardcode secrets; use the vault or environment variables.
 
 ### Colima / Docker (`63-colima.zsh`)
 
-`costart` (start with kubernetes), `corest`, `costop`, `codrop` (delete VM), `colist`, `couse` (set docker context), `coinfo` (status summary). Nothing auto-starts. `costart_lite` starts without Kubernetes. `docker_usage` shows memory per container, disk use, images by repository, unused volumes and stopped containers (read-only); `docker_clean cache|dangling|images <repo> [N] [-n]|containers|volumes` removes what you choose, asks first, and keeps images pinned in the manifest or used by a container (by name or image ID) and SigNoz volumes.
+`costart` (start with kubernetes), `corest`, `costop`, `codrop` (delete VM), `colist`, `couse` (set docker context), `coinfo` (status summary). Nothing auto-starts. `costart_lite` starts without Kubernetes. `docker_usage` shows memory per container, disk use, images by repository, unused volumes and stopped containers (read-only); `docker_clean cache|dangling|images <repo> [N] [-n]|containers|volumes` removes what you choose, asks first, and keeps images pinned in the manifest or used by a container (by name or image ID, including pins pulled by digest) and SigNoz volumes. Afterwards the user runs `colima ssh -- sudo fstrim -av` to return the freed space to macOS: the VM disk file (`~/.config/colima/_lima/_disks/colima/datadisk`) never shrinks on its own.
 
 ### Observability (`64-observability.zsh`)
 

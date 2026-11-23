@@ -24,6 +24,8 @@ Usage & cleanup:
   docker_clean containers   # stopped containers
   docker_clean volumes      # unused volumes, one by one (app data! never signoz-*)
                             # every step asks first; pinned and in-use images are kept
+  colima ssh -- sudo fstrim -av   # afterwards: give the freed space back to macOS
+                            # (the VM disk file never shrinks by itself; 67 GB -> 13 GB once)
 
 Docker (after costart + couse):
   docker ps                 # list containers

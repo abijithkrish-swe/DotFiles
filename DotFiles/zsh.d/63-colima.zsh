@@ -136,6 +136,8 @@ usage: docker_clean <what>        (see docker_usage first; each step asks before
                            Keeps images pinned in the components manifest or used by a container.
   containers               stopped containers
   volumes                  unused volumes, one by one (never signoz-*)
+Afterwards, give the space back to macOS (the VM disk file doesn't shrink by itself):
+  colima ssh -- sudo fstrim -av
 EOF
       return 1 ;;
   esac
