@@ -64,15 +64,20 @@ docker_usage() {
   return 0
 }
 
-# Images that must stay: pinned in the manifest (docker= / @image), or used by a container.
+# Images that must stay: pinned in the manifest (docker= / @image), or used by a
+# container. Prints name:tag, short image IDs and pin digests (sha256:…): pinned
+# images are pulled by digest, so they show as <repo>:<none> with no tag to match.
 _docker_protected() {
   local m="${COMPONENTS_MANIFEST:-$HOME/.config/components/components.conf}"
-  { grep -oE 'docker=[^[:space:]]+' "$m" 2>/dev/null | sed 's/^docker=//'
-    awk '$1=="@image" {print $3}' "$m" 2>/dev/null
-    docker ps -a --format '{{.Image}}'
+  local -a pins
+  pins=( $(grep -oE 'docker=[^[:space:]]+' "$m" 2>/dev/null | sed 's/^docker=//')
+         $(awk '$1=="@image" {print $3}' "$m" 2>/dev/null) )
+  { print -rl -- ${pins%%@*}                       # name:tag
+    print -rl -- ${(M)${pins##*@}:#sha256:*}       # digest
+    docker ps -a --format '{{.Image}}' | sed -E 's/@sha256:.*//'
     # and by image ID: another tag of the same image counts as in use
     docker ps -aq | xargs docker inspect -f '{{.Image}}' 2>/dev/null | sed 's/^sha256://' | cut -c1-12
-  } | sed -E 's/@sha256:.*//' | sort -u
+  } | sort -u
 }
 
 docker_clean() {
@@ -93,12 +98,16 @@ docker_clean() {
       [[ "$4" == "-n" || "$3" == "-n" ]] && dry=1 && [[ "$3" == "-n" ]] && keep=3
       [[ -n "$repo" && "$keep" == <-> ]] || { echo "usage: docker_clean images <repo> [keep=3] [-n]"; return 1; }
       local -a protected doomed; protected=( ${(f)"$(_docker_protected)"} )
-      local line ref id i=0
+      local line ref id dig i=0
       # newest first; keep the newest $keep, plus anything protected
-      for line in ${(f)"$(docker images "$repo" --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}|{{.ID}}' | sort -r)"}; do
-        ref=${${line#*|}%|*}; id=${line##*|}; (( i++ ))
+      for line in ${(f)"$(docker images --digests "$repo" --format '{{.CreatedAt}}|{{.Repository}}:{{.Tag}}|{{.ID}}|{{.Digest}}' | sort -r)"}; do
+        local -a f; f=( "${(@s:|:)line}" ); ref=$f[2]; id=$f[3]; dig=$f[4]; (( i++ ))
         (( i <= keep )) && { echo "  keep  $ref (newest $keep)"; continue }
-        if (( ${protected[(Ie)$ref]} || ${protected[(Ie)$id]} )); then echo "  keep  $ref (pinned or used by a container)"; continue; fi
+        if (( ${protected[(Ie)$ref]} || ${protected[(Ie)$id]} || ${protected[(Ie)$dig]} )); then
+          echo "  keep  $ref ${dig:+(${dig:0:19}…) }(pinned or used by a container)"; continue
+        fi
+        # an untagged image is removed by ID (name:<none> isn't a valid reference)
+        [[ $ref == *:\<none\> ]] && ref=$id
         doomed+=("$ref")
       done
       (( ${#doomed} )) || { echo "Nothing to remove."; return 0 }
