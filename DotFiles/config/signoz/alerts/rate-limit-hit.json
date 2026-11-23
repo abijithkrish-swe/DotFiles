@@ -75,5 +75,8 @@
     }
   },
   "schemaVersion": "v2alpha1",
-  "version": "v5"
+  "version": "v5",
+  "preferredChannels": [
+    "Telegram Alert"
+  ]
 }
