@@ -13,6 +13,7 @@ add_secret <KEY_NAME>   # Interactive prompt to add/update a secret
 use_secret <KEY_NAME>   # Decrypts and exports KEY_NAME to current session
 show_secret <KEY_NAME>  # Prints the decrypted value to stdout
 vault_ls               # List all available secret keys (names only)
+delete_secret <KEY_NAME> # Remove a secret from the vault
 
 Migration / Setup
 -----------------

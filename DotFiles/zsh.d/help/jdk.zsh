@@ -13,6 +13,7 @@ Helper commands (from your zsh modules)
 ---------------------------------------
 jdk_list             # approved JDK versions (from the components manifest)
 use_jdk [ver]|off   # switch JAVA_HOME + PATH (no ver = manifest default; prefix ok: 26 → 26.0.2)
+                     # aliases: jdk_use, jdk_versions (= jdk_list), jdk_clear / jdkoff
   e.g. use_jdk 17    # set JDK 17
        use_jdk off   # unset JAVA_HOME, fallback system Java
 

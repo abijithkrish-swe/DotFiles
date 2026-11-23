@@ -169,7 +169,7 @@ Auto-prefers `fd` then `rg` for the default file source.
 
 ### devhelp system (`zz-devhelp.zsh`)
 
-`devhelp <topic>` shows cheatsheets. Topics auto-loaded from `~/.zsh.d/help/*.zsh`. Available: `bat`, `colima`, `components` (approved versions, manifest flags), `docker-basics`, `eza`, `fd`, `fzf-basic/intermediate/advanced`, `git`, `git-advanced`, `gradle`, `jdk`, `k8s`, `maven`, `mysql`, `node`, `obs`, `python`, `redis`, `rust`, `secrets`, `tmux`, `toolshelf` (running projects via agents: sandbox vs docker mode), `vim`, `vim-advanced`, `default`. List with `devhelp_list`.
+`devhelp <topic>` shows cheatsheets. Topics auto-loaded from `~/.zsh.d/help/*.zsh`. Available: `ant`, `bat`, `colima` (incl. `docker_usage`/`docker_clean`), `components` (approved versions, manifest flags), `docker-basics`, `eza`, `fd`, `fzf-basic/intermediate/advanced`, `git`, `git-advanced`, `go`, `gradle`, `jdk`, `k8s`, `maven`, `mysql`, `node` (incl. pnpm), `obs`, `protobuf`, `python`, `redis`, `rust`, `secrets`, `tmux`, `toolshelf` (running projects via agents: sandbox vs docker mode), `vim`, `vim-advanced`, `default`. Every user-facing command must appear in a topic: `zsh -f tests/help/devhelp-coverage.zsh`. List with `devhelp_list`.
 
 ### Proxy (`01-security.zsh`, `~/.zshrc.local`)
 

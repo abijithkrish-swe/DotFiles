@@ -6,6 +6,9 @@ Git — Quick Reference (Basic)
 
 Your aliases
 ------------
+  gs, ga, gcm "msg", gp   # status -sb, add, commit -m, push
+  gl                 # graph log of all branches
+  rebasem, rebasei   # rebase onto master, interactive rebase
   lg                 # pretty graph log
   tags               # list tags
   branches           # list branches (all)

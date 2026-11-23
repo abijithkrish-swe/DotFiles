@@ -8,6 +8,7 @@ Maven Component Management
 maven_list              # Approved Maven versions (from the components manifest)
 use_maven [version]     # Activate (exact or prefix: 3.9 → 3.9.12; none = default)
 use_maven off           # Deactivate Maven
+                        # aliases: maven_use, maven_off, maven_versions
 maven_clear             # Same as 'use_maven off'
 
 Environment Variables

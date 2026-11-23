@@ -64,6 +64,15 @@ vault_ls               # list keys
 # Env Management
 direnv allow           # load .envrc in current dir
 
+# Shell shortcuts
+psa                    # ps aux
+please                 # re-run the last command as superuser
+tailf FILE             # tail -f
+
+# Docker & Colima - see 'devhelp colima'
+docker_usage           # memory, disk, images, volumes (read-only)
+docker_clean           # remove what you choose; asks first
+
 EOF
 }
 

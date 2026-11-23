@@ -8,6 +8,7 @@ Start / Stop:
   costart_lite              # start without Kubernetes (less RAM and idle CPU)
   corest                    # restart
   costop                    # stop
+  colist                    # list Colima VMs (CPUs, RAM, disk)
   codrop                    # delete VM (DANGER: wipes images/volumes within)
 
 Context:

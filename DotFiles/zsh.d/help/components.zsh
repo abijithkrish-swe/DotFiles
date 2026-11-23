@@ -51,6 +51,7 @@ Per-project: .toolsrc + toolup
 ------------------------------
 JDK=17  MAVEN=3.9  NODE=22  RUST=  ...   (empty value = skip)
 toolup                  # resets PATH, applies .toolsrc; returns 1 on failures
+mkbin                   # create .bin/ in this folder and put it first on PATH
 
 AI agents
 ---------

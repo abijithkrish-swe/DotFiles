@@ -33,7 +33,7 @@ Notes:
   • New version? Add it to the manifest first — see 'devhelp components'.
 
 pnpm (its own component: the standalone binary, no Node needed to run it)
-  use_pnpm [ver]   /  pnpm_list  /  pnpm_clear     (aliases pnpm_use, pnpm_off)
+  use_pnpm [ver]   /  pnpm_list  /  pnpm_clear     (aliases pnpm_use, pnpm_off, pnpm_versions)
   Install a version: download the macOS arm64 asset from github.com/pnpm/pnpm/releases,
     mkdir -p ~/Components/Pnpm/<ver>/bin, move it there as `pnpm`, chmod +x,
     xattr -d com.apple.quarantine it, then add "pnpm <ver> default" to the manifest.

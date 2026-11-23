@@ -9,6 +9,7 @@ gradle_list             # Approved Gradle versions (from the components manifest
 use_gradle [version]    # Activate (exact or prefix: 9 → 9.3.1; none = default)
 use_gradle off          # Deactivate Gradle
 gradle_clear            # Same as 'use_gradle off'
+                        # aliases: gradle_use, gradle_off, gradle_versions
 
 Environment Variables
 ---------------------

@@ -19,6 +19,8 @@ mysql_list                     # approved versions (from the components manifest
 use_mysql [ver]|off            # switch PATH & envs to version (prefix ok: 5.7 → 5.7.30)
 mysql_start [--port N] [ver]   # start server; asks to stop or auto-picks free port
 mysql_stop [ver]               # cleanly stop server (mysqladmin or pid)
+mysql_restart [ver]            # stop, then start again
+                               # aliases: mysql_use, mysql_off
 mysql_cli [args...]            # mysql client for current version; auto uses socket
 mysql_current                  # show active version, status, port, pid, paths
 mysql_clear                    # remove MySQL from PATH
