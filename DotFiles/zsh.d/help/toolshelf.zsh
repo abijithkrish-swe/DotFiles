@@ -55,6 +55,8 @@ Agent rules
   One file: ~/.config/agents/AGENTS.md (repo: DotFiles/config/agents/AGENTS.md).
   Claude Code imports it; toolshelf sends it to every other app (Claude app,
   Codex / ChatGPT …) when they connect. Edit in the repo, deploy, reconnect.
+  codex                     # Codex CLI = the ChatGPT app's own copy (alias when no
+                            # codex is on PATH); same ~/.codex/config.toml as the app
   Written in ASD-STE100 style, kept under 1600 bytes:
   perl tests/agents/agents-md-test.pl
 

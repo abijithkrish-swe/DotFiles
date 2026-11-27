@@ -57,6 +57,15 @@ if [ -d "$HOME/.local/bin" ] && ls "$HOME/.local/bin"/* &>/dev/null; then
   fi
 fi
 
+# Codex CLI: the copy inside the ChatGPT app (updates with the app, nothing to
+# install). It shares ~/.codex/config.toml with the app: toolshelf MCP,
+# approvals, [otel] and trusted projects apply to both.
+if ! whence -p codex >/dev/null; then
+  _codex_app_cli=/Applications/ChatGPT.app/Contents/Resources/codex-cli/bin/codex
+  [ -x "$_codex_app_cli" ] && alias codex="$_codex_app_cli"
+  unset _codex_app_cli
+fi
+
 # Main cache dir for Zsh-related state
 export ZSH_CACHE_DIR="$HOME/.zshcache"
 mkdir -p "$ZSH_CACHE_DIR"
