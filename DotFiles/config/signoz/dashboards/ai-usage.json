@@ -97,6 +97,15 @@
               "width": 12,
               "x": 0,
               "y": 15
+            },
+            {
+              "content": {
+                "$ref": "#/spec/panels/aea19bf9-a082-5067-aaa9-369fa1269557"
+              },
+              "height": 6,
+              "width": 12,
+              "x": 0,
+              "y": 21
             }
           ]
         }
@@ -663,6 +672,50 @@
                         "spec": {
                           "name": "A",
                           "query": "SELECT\n  if(attributes_string['vcs.repository.name'] = '', '(no repo)', attributes_string['vcs.repository.name']) AS project,\n  attributes_string['model'] AS model,\n  resources_string['agent.config'] AS agent_config,\n  count() AS requests,\n  round(100 * count() / sum(count()) OVER (PARTITION BY project, agent_config), 1) AS pct_of_project_requests,\n  round(sum(attributes_number['cost_usd']), 2) AS cost_usd,\n  sum(attributes_number['output_tokens']) AS output_tokens\nFROM signoz_logs.distributed_logs_v2\nWHERE timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n  AND ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n  AND attributes_string['event.name'] = 'api_request'\nGROUP BY project, model, agent_config\nORDER BY project, cost_usd DESC",
+                          "disabled": false
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            }
+          ]
+        }
+      },
+      "aea19bf9-a082-5067-aaa9-369fa1269557": {
+        "kind": "Panel",
+        "spec": {
+          "display": {
+            "name": "Codex by project",
+            "description": "Codex sends no repo name: project = last folder of the cwd on its sampling spans, joined by conversation id. client cli = Codex CLI. (unknown) = conversations with no sampling span, usually empty ones."
+          },
+          "plugin": {
+            "kind": "signoz/TablePanel",
+            "spec": {
+              "formatting": {
+                "columnUnits": {},
+                "decimalPrecision": "2"
+              },
+              "thresholds": null,
+              "visualization": {
+                "timePreference": "global_time"
+              }
+            }
+          },
+          "queries": [
+            {
+              "kind": "scalar",
+              "spec": {
+                "plugin": {
+                  "kind": "signoz/CompositeQuery",
+                  "spec": {
+                    "queries": [
+                      {
+                        "type": "clickhouse_sql",
+                        "spec": {
+                          "name": "A",
+                          "query": "-- Codex sends no repo field. Its only folder is `cwd` on the app server's\n-- run_sampling_request spans; other spans in the same trace carry the\n-- conversation id, which the log events have too. Project = last folder of cwd.\n-- client: cli = Codex CLI (originator codex-tui), app = the ChatGPT/Codex app.\nWITH conv_project AS (\n  SELECT coalesce(nullIf(t.attributes_string['conversation.id'], ''),\n                  nullIf(t.attributes_string['thread.id'], ''),\n                  t.attributes_string['thread_id']) AS conv,\n         any(s.cwd) AS cwd\n  FROM (\n    SELECT DISTINCT trace_id, attributes_string['cwd'] AS cwd\n    FROM signoz_traces.distributed_signoz_index_v3\n    WHERE serviceName = 'codex-app-server' AND name = 'run_sampling_request'\n      AND attributes_string['cwd'] != ''\n      AND timestamp > now() - INTERVAL 90 DAY\n  ) AS s\n  INNER JOIN signoz_traces.distributed_signoz_index_v3 AS t ON t.trace_id = s.trace_id\n  WHERE t.serviceName = 'codex-app-server' AND t.timestamp > now() - INTERVAL 90 DAY\n    AND (t.attributes_string['conversation.id'] != '' OR t.attributes_string['thread.id'] != ''\n         OR t.attributes_string['thread_id'] != '')\n  GROUP BY conv\n),\nper_conv AS (\n  SELECT\n    l.attributes_string['conversation.id'] AS conv,\n    if(anyIf(l.attributes_string['originator'], l.attributes_string['originator'] != '') = 'codex-tui', 'cli', 'app') AS client,\n    countIf(l.attributes_string['event.name'] = 'codex.user_prompt') AS prompts,\n    countIf(l.attributes_string['event.name'] = 'codex.tool_result') AS tool_calls,\n    sum(toUInt64OrZero(l.attributes_string['input_token_count'])) AS input_tokens,\n    sum(toUInt64OrZero(l.attributes_string['output_token_count'])) AS output_tokens,\n    max(l.timestamp) AS last_ts\n  FROM signoz_logs.distributed_logs_v2 AS l\n  WHERE l.timestamp BETWEEN {{.start_timestamp_nano}} AND {{.end_timestamp_nano}}\n    AND l.ts_bucket_start BETWEEN {{.start_timestamp}} - 1800 AND {{.end_timestamp}}\n    AND l.resources_string['service.name'] LIKE 'codex%'\n    AND l.attributes_string['conversation.id'] != ''\n  GROUP BY conv\n)\nSELECT\n  multiIf(p.cwd = '', '(unknown)', p.cwd = '/', '(no folder)', arrayElement(splitByChar('/', p.cwd), -1)) AS project,\n  c.client AS client,\n  count() AS conversations,\n  sum(c.prompts) AS prompts,\n  sum(c.tool_calls) AS tool_calls,\n  sum(c.input_tokens) AS input_tokens,\n  sum(c.output_tokens) AS output_tokens,\n  formatDateTime(toTimeZone(fromUnixTimestamp64Nano(max(c.last_ts)), 'Asia/Kolkata'), '%Y-%m-%d %H:%i') AS last_used_ist\nFROM per_conv AS c\nLEFT JOIN conv_project AS p ON p.conv = c.conv\nGROUP BY project, client\nORDER BY output_tokens DESC, conversations DESC",
                           "disabled": false
                         }
                       }

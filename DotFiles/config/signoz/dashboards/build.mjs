@@ -161,6 +161,7 @@ const dashboards = {
         [panel("table", "Cost by model", "Requests, total and average cost per model and config.", [ch("cost_by_model")]), 6],
         [panel("table", "Cost by repository", "Where the money goes, per repo (vcs.repository.name).", [ch("cost_by_repo")]), 6],
         [panel("table", "Models per project", "Which model each project used: share of the project's requests, cost and output tokens.", [ch("model_by_project")]), 12],
+        [panel("table", "Codex by project", "Codex sends no repo name: project = last folder of the cwd on its sampling spans, joined by conversation id. client cli = Codex CLI. (unknown) = conversations with no sampling span, usually empty ones.", [ch("codex_by_project")]), 12],
       ]],
       ["claude vs myclaude", [
         [panel("table", "Usage rate by config", "Per active day (IST). api_equiv_usd is Claude Code's cost_usd: what the API would charge, not what the plan bills.", [ch("config_compare")]), 12],
